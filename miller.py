@@ -2,43 +2,9 @@
 
 from gnuradio import blocks
 from gnuradio import gr
-from gnuradio.eng_option import eng_option
-from optparse import OptionParser
 
-import digitizer
-import gr_queue
 import utilities as u
-
-from packets import CombinedPacketProcessor, PacketType
-import transition
-
-class miller_sink(gr.hier_block2):
-
-    def __init__(self): 
-        gr.hier_block2.__init__(self, "miller_sink",
-                gr.io_signature(1, 1, gr.sizeof_float), # Input signature
-                gr.io_signature(0, 0, 0))       # Output signature
-
-        self._dig = digitizer.digitizer(mult=5, add=0, lo=0.1, hi=0.5, start=1)
-        self._sink = gr_queue.queue_sink_f()
-
-        self.connect(self, self._dig, self._sink)
-
-    def get_sink(self):
-        return self._sink
-
-class miller_top(gr.top_block):
-
-    def __init__(self, src="/home/ilias/Desktop/all-read.wav"):
-        super(miller_top, self).__init__()
-        self._src = blocks.wavfile_source(src, False)
-        self._sink = miller_sink()               
-
-        self.connect(self._src, self._sink)
-    
-    def get_sink(self):
-        return self._sink.get_sink()
-
+from packets import PacketType
 
 class miller_decoder:
     BEGINNING    = 0
@@ -46,9 +12,8 @@ class miller_decoder:
     ONE_STAGE_0  = 2
     ONE_STAGE_1  = 3
 
-    def __init__(self, sink, samp_rate=2000000):
-        self._t = transition.transition(1, samp_rate)        
-        self._sink = sink
+    def __init__(self, cpp):
+        self._cpp = cpp
 
         self._prev = 0
         
@@ -176,13 +141,17 @@ class miller_decoder:
 
         return rets
 
-    def decode(self):
-        for cur, dur in self._t.add_next_bit_by_stream(self._sink):
+    def _process_bit(self, bit):
+        self._cpp.append_bit(bit, PacketType.READER_TO_TAG)
+
+    def process_transition(self, transitions):
+        for trans in transitions:
+            cur, dur = trans
             
             err = u.ErrorCode.NO_ERROR
             cur_stage = self._get_cur_stage()
             if (dur < self._lo or dur > self._hi) and (cur_stage == miller_decoder.ZERO_STAGE_0 or cur_stage == miller_decoder.ONE_STAGE_1):
-                yield self._cur_type
+                self._process_bit(self._cur_type)
                 err = u.ErrorCode.TOO_LONG # to finish
             elif dur < self._lo:
                 err = u.ErrorCode.TOO_SHORT
@@ -190,7 +159,7 @@ class miller_decoder:
                 err = u.ErrorCode.TOO_LONG
 
             if err != u.ErrorCode.NO_ERROR:
-                yield err
+                self._process_bit(err)
                 self._reset()
                 continue
             
@@ -203,23 +172,13 @@ class miller_decoder:
             elif cur_stage == miller_decoder.ONE_STAGE_1:
                 rets = self.handle_os1(cur, dur)
             else:
-                yield u.ErrorCode.INTERNAL
+                self._process_bit(u.ErrorCode.INTERNAL)
 
             for ret in rets:
-                yield ret
+                self._process_bit(ret)
                 if ret > 1:
                     self._reset()   
                     self._prev = 0
                 else:
                     self._prev = ret
-
-    
-if __name__ == '__main__':
-    parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
-    (options, args) = parser.parse_args()
-    tb = miller_top()
-    tb.start()
-    md = miller_decoder(tb.get_sink())
-    cpp = CombinedPacketProcessor()
-    md.process(cpp)    
 

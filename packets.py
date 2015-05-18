@@ -76,7 +76,7 @@ class Packet:
 
     # should not be method
     def process_packet(self):
-        print "PACKET START"
+        print "PACKET START, TYPE ", self._type
         for byte in self._bytes:    
             print format(byte, "#04X")
         print "PACKET END"
