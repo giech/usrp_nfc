@@ -1,167 +1,104 @@
 #!/usr/bin/env python
 
 from gnuradio import blocks
-from gnuradio import eng_notation
 from gnuradio import gr
 from gnuradio.eng_option import eng_option
-from gnuradio.gr import firdes
-import gr_queue
 from optparse import OptionParser
 
-class manchester(gr.top_block):
+import gr_queue
+import numpy
+import utilities as u
+import digitizer
+
+from packets import CombinedPacketProcessor, PacketType
+import transition
+
+class manchester_sink(gr.hier_block2):
 
     def __init__(self):
-        super(manchester, self).__init__()
+        gr.hier_block2.__init__(self, "manchester_sink",
+                gr.io_signature(1, 1, gr.sizeof_float), # Input signature
+                gr.io_signature(0, 0, 0))       # Output signature
 
-        self.samp_rate = samp_rate = 2000000
-        self.zero_val = zero_val = 0.150
-        self.mult_const = mult_const = 4.5
+        self._dig = digitizer.digitizer(mult=4.5, add=-0.675, lo=0, hi=0.5, start=0)
+        self._sink = gr_queue.queue_sink_f()
 
-        self.blocks_wavfile_source_0 = blocks.wavfile_source("/home/ilias/Desktop/read1-fixed.wav", False)
-        self.blocks_threshold_ff_0 = blocks.threshold_ff(0, 0.5, 0)
-        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_vff((mult_const, ))
-        self.blocks_add_const_vxx_0 = blocks.add_const_vff((-zero_val*mult_const, ))
+        self.connect(self, self._dig, self._sink)
 
-        self.sink = gr_queue.queue_sink_f()
-
-
-        self.connect((self.blocks_wavfile_source_0, 0), (self.blocks_multiply_const_vxx_0, 0))
-        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_add_const_vxx_0, 0))
-        self.connect((self.blocks_add_const_vxx_0, 0), (self.blocks_threshold_ff_0, 0))
-        self.connect(self.blocks_threshold_ff_0, self.sink)
-
-    def __iter__(self):
-        return self.sink.__iter__()
+    def get_sink(self):
+        return self._sink
 
 
-def transition(stream):
-    last = 0
-    last_i = 0
+class manchester_top(gr.top_block):
 
-    for i, val in enumerate(stream):
-       # print i
-        if val != last:
-            yield (last, i-last_i)
-            last_i = i
-            last = val
+    def __init__(self, src="/home/ilias/Desktop/all-read.wav"):
+        super(manchester_top, self).__init__()
 
-        if i - last_i > 50 and last == 0:
-            yield (0, 1000)
-            last = val
+        self._src = blocks.wavfile_source(src, False)
+        self._sink = manchester_sink()               
 
-# based on 
-def manchester_decode(stream):
-    prev_set = False
-    prev = 0
+        self.connect(self._src, self._sink)
     
-    for cur, dur in transition(stream):
-        # convert the time in samples to microseconds
-        
-        dur = dur / float(stream.samp_rate) * 1e6
-        #print cur, dur
-        if dur < 4 or dur > 10:
-            prev_set = False
-            prev = 0
-            yield 2 # before start or after end
-            continue
+    def get_sink(self):
+        return self._sink.get_sink()
 
-        dual = dur > 5.5
-        
-        if prev_set:
-            if prev == cur:
-                print "REJECT -- INTERNAL ERROR SAME"
-            elif prev == 0:
-                yield 0
-            elif prev == 1:
-                yield 1
-            else:
-                print "REJECT - INTERNAL ERROR NON BINARY"
-            prev_set = dual
-        else:
-            if dual:
-                print "REJECT -- WRONG ENCODING"
-            else:
-                prev_set = True
+class manchester_decoder:
 
-        prev = cur
+    def __init__(self, sink, samp_rate=2000000):
+        self._t = transition.transition(0, samp_rate)        
+        self._sink = sink
+        dur = u.PulseLength.HALF
+        self._lo = dur - 1
+        self._mid = dur + 1
+        self._hi = 2*dur + 1 
+        self._reset_decoder()
+            
+    def _reset_decoder(self):
+        self._prev_set = False
+        self._prev = 0
 
-CRC_14443_A = 0x6363
-CRC_14443_B	= 0xFFFF
-
-def calculate_crc(data, cktp=CRC_14443_A):
-    wcrc = cktp
-    for b in data:               
-        b = b ^ (wcrc & 0xFF)
-        b = b ^ (b << 4) & 0xFF
-        wcrc = ((wcrc >> 8) ^ (b << 8) ^ (b << 3) ^ (b >> 4))
-    
-    if (cktp == CRC_14443_B):
-        wcrc = ~wcrc
-
-    return [wcrc & 0xFF, (wcrc >> 8) & 0xFF]
-
-def check_crc(data, cktp=CRC_14443_A):
-    crc = calculate_crc(data[:-2], cktp)
-    return crc[0] == data[-2] and crc[1] == data[-1] 
-
-
-def process_bytes(bytes):
-   for byte in bytes:    
-        print format(byte, "#04X")
-   print "FINISHED SECTION"
-   # print "CRC OK" if check_crc(bytes) else "CRC FAILED"
-
-
-def tag_decode(stream):
-    started = False    
-    cur_byte = 0
-    cur_bits = 0
-    set_bits = 0
-    bytes = []
-
-    for bit in manchester_decode(stream):
-        if bit != 0 and bit != 1:
-            if not started:
+    def decode(self):
+        for cur, dur in self._t.add_next_bit_by_stream(self._sink):
+            
+            err = u.ErrorCode.NO_ERROR
+            if dur < self._lo:
+                err = u.ErrorCode.TOO_SHORT
+            elif dur > self._hi:
+                err = u.ErrorCode.TOO_LONG
+            
+            if err != u.ErrorCode.NO_ERROR:
+                self._reset_decoder()
+                yield err
                 continue
+
+            dual = dur > self._mid
+            
+            prev = self._prev
+            
+            if self._prev_set:
+                if prev == cur or (prev != 0 and prev != 1):
+                    yield u.ErrorCode.INTERNAL
+                    continue
+                
+                yield int(prev)
+                self._prev_set = dual
             else:
-                if cur_bits == 8:
-                    if set_bits & 1 == 0: # must have even number, so that last bit would be 1, ie |-|________
-                        bytes.append(cur_byte)
-                    else:
-                        print "ERROR WITH LAST BYTE"
+                if dual:
+                    yield u.ErrorCode.ENCODING
+                    continue    
+                self._prev_set = True
 
-                process_bytes(bytes)
-
-                # reset
-                started = False    
-                cur_byte = 0
-                cur_bits = 0
-                set_bits = 0
-                bytes = []
-        if not started:
-            if bit == 1:
-                started = True
-            continue
-        
-
-
-        if cur_bits < 8:       
-            cur_byte = cur_byte | (bit << cur_bits)
-            cur_bits += 1
-            set_bits += bit
-        else:
-            if set_bits & 1 != bit:
-                bytes.append(cur_byte)
-            else:
-                print "ERROR WITH PARITY BIT!!"
-            cur_byte = 0
-            cur_bits = 0
-            set_bits = 0        
+            self._prev = cur
+    
+    def process(self, cpp):
+        for bit in self.decode():
+            cpp.append_bit(bit, PacketType.TAG_TO_READER)
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    tb = manchester()
+    tb = manchester_top()
     tb.start()
-    tag_decode(tb)
-
+    md = manchester_decoder(tb.get_sink())
+    cpp = CombinedPacketProcessor()
+    md.process(cpp)
