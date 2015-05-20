@@ -5,7 +5,7 @@ from gnuradio import gr
 
 class transition_sink(gr.sync_block):
     "Transition sink" 
-    def __init__(self, samp_rate, av_window=1000, max_len=50):
+    def __init__(self, samp_rate, callback, lo_val = 0.1, hi_val = 1.1, av_window=1000, max_len=50):
         gr.sync_block.__init__(
             self,
             name = "transition_sink",
@@ -24,8 +24,9 @@ class transition_sink(gr.sync_block):
         self._sum = 0
         self._current_state = 0
 
-        self.register_lo_callback(None)
-        self.register_hi_callback(None)
+        self._lo_val = lo_val
+        self._hi_val = hi_val
+        self._callback = callback
 
     def _reset_bit(self, bit):
         self._dur = 1
@@ -40,44 +41,27 @@ class transition_sink(gr.sync_block):
             bit += 1
         return (bit, dur*1e6/self._samp_rate)
 
-    def register_lo_callback(self, callback, val=0.1):
-        self._lo_callback = callback
-        self._lo_val = val
-
-    def register_hi_callback(self, callback, val=1.2):
-        self._hi_callback = callback
-        self._hi_val = val
-
     def _do_callback(self, data):
-        if data:
-            #print data
-            if self._current_state == -1 and self._lo_callback:
-               # print data
-                self._lo_callback(data)                
-            elif self._current_state == 1 and self._hi_callback:
-             #   print data
-                self._hi_callback(data)
+        if self._current_state == -1:
+            self._callback(data, 1)      
+        elif self._current_state == 1:
+            self._callback(data, 0)
 
     def work(self, input_items, output_items):
-        callback = []
-        for bit in input_items[0]:
+        ii0 = input_items[0].tolist()
+        
+        for bit in ii0:
             prev = self._ar[self._index]
-
-            # setup period            
-            if (self._filled < self._length - 1):
-                self._filled += 1
-
-            av =  self._sum/self._filled
-            ratio = bit/av
 
             prev_state = self._current_state
 
             if (self._filled < self._length - 1):
+                self._filled += 1
                 cur = bit
                 val = 0
             else:
+                ratio = bit*self._length/self._sum
                 if self._lo_val > ratio:
-                 #   print av, bit
                     val = -1
                     cur = prev
                     self._current_state = -1
@@ -98,18 +82,16 @@ class transition_sink(gr.sync_block):
                 self._dur += 1
             else:
                 if prev_state == 0:
-                    callback.append(self._get_cur_value_dur(self._max))
+                    self._do_callback(self._get_cur_value_dur(self._max))
                 else:
-                    callback.append(self._get_cur_value())
+                    self._do_callback(self._get_cur_value())
                 self._reset_bit(val)
 
 
-            if self._dur > self._max:#   and self._last_bit == self._start_bit:
-                callback.append(self._get_cur_value())
-                self._do_callback(callback)
-                callback = []
+            if self._dur > self._max:
+                self._do_callback(self._get_cur_value())
                 self._reset_bit(self._last_bit)
                 self._current_state = 0
-        self._do_callback(callback)
+
         return len(input_items[0]) # The number of items produced is returned, this can be less than noutput_items
 

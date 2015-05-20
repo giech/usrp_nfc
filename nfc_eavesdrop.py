@@ -5,12 +5,10 @@ from gnuradio import gr
 from gnuradio.eng_option import eng_option
 from optparse import OptionParser
 
-from manchester import manchester_decoder
-from miller import miller_decoder
-
-import usrp_src 
-from packets import CombinedPacketProcessor
+import usrp_src
 import transition_sink
+import background
+
 
 class nfc_eavesdrop(gr.top_block):
     def __init__(self, src="uhd", decode="all", samp_rate=2e6):
@@ -22,24 +20,23 @@ class nfc_eavesdrop(gr.top_block):
         else:
             self._src = blocks.wavfile_source(src, False)
 
-        cpp = CombinedPacketProcessor()
-        
-        self._trans = transition_sink.transition_sink(samp_rate)
+        reader = decode == "all" or decode == "reader"
+        tag = decode == "all" or decode == "tag"
+
+
+        self._back = background.background(reader, tag)    
+        self._trans = transition_sink.transition_sink(samp_rate, self._back.append)
         self._connect(self._src, self._trans)
-
-        if decode == "all" or decode == "reader":
-            mild = miller_decoder(cpp)
-            self._trans.register_lo_callback(mild.process_transition)
-
-        if decode == "all" or decode == "tag":
-            mand = manchester_decoder(cpp)
-            self._trans.register_hi_callback(mand.process_transition, 1.1)
+        
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    src = "/home/ilias/Desktop/ultralight.wav"    
+    src =  "/home/ilias/Desktop/ultralight.wav"    
     decode = "all"
 
     tb = nfc_eavesdrop(src=src, decode=decode)
     tb.run()
+    print "PROCESSING FINISHED"
+    import time
+    time.sleep(2)
