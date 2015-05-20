@@ -40,11 +40,11 @@ class transition_sink(gr.sync_block):
             bit += 1
         return (bit, dur*1e6/self._samp_rate)
 
-    def register_lo_callback(self, callback, val=0.2):
+    def register_lo_callback(self, callback, val=0.1):
         self._lo_callback = callback
         self._lo_val = val
 
-    def register_hi_callback(self, callback, val=1.1):
+    def register_hi_callback(self, callback, val=1.2):
         self._hi_callback = callback
         self._hi_val = val
 
@@ -52,8 +52,10 @@ class transition_sink(gr.sync_block):
         if data:
             #print data
             if self._current_state == -1 and self._lo_callback:
+               # print data
                 self._lo_callback(data)                
             elif self._current_state == 1 and self._hi_callback:
+             #   print data
                 self._hi_callback(data)
 
     def work(self, input_items, output_items):
@@ -75,6 +77,7 @@ class transition_sink(gr.sync_block):
                 val = 0
             else:
                 if self._lo_val > ratio:
+                 #   print av, bit
                     val = -1
                     cur = prev
                     self._current_state = -1
@@ -85,6 +88,7 @@ class transition_sink(gr.sync_block):
                 else:
                     val = 0
                     cur = bit
+            
             
             self._ar[self._index] = cur
             self._index = (self._index + 1) % self._length 

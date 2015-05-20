@@ -33,12 +33,12 @@ class nfc_eavesdrop(gr.top_block):
 
         if decode == "all" or decode == "tag":
             mand = manchester_decoder(cpp)
-            self._trans.register_hi_callback(mand.process_transition)
+            self._trans.register_hi_callback(mand.process_transition, 1.1)
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    src = "uhd" # "/home/ilias/Desktop/nfc-preamble.wav"    
+    src = "/home/ilias/Desktop/ultralight.wav"    
     decode = "all"
 
     tb = nfc_eavesdrop(src=src, decode=decode)

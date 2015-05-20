@@ -125,6 +125,7 @@ class CombinedPacketProcessor:
             self._packet_lens.append(0)
 
     def append_bit(self, bit, packet_type):
+
         pp = self._packet_processors[packet_type]     
         ret = pp.append_bit(bit)
         l = pp.get_packet_length() 

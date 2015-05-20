@@ -17,9 +17,11 @@ class miller_decoder:
 
         self._prev = 0
         
-        self._lo = u.PulseLength.ZERO - 1
+
+        self._thres = 1.5
+        self._lo = u.PulseLength.ZERO - self._thres
         self._hi = 2*u.PulseLength.FULL 
-        self._thres = 0.7
+        
         self._reset()
 
     def _get_cur_stage(self):
@@ -148,6 +150,9 @@ class miller_decoder:
         for trans in transitions:
             cur, dur = trans
             
+            if cur == 0 and abs(dur - u.PulseLength.ZERO) < u.PulseLength.ZERO/2:
+                dur = u.PulseLength.ZERO
+
             err = u.ErrorCode.NO_ERROR
             cur_stage = self._get_cur_stage()
             #print "STAG", cur_stage            
