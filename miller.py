@@ -19,7 +19,7 @@ class miller_decoder:
         
         self._lo = u.PulseLength.ZERO - 1
         self._hi = 2*u.PulseLength.FULL 
-        self._thres = 0.5
+        self._thres = 0.7
         self._reset()
 
     def _get_cur_stage(self):
@@ -150,6 +150,9 @@ class miller_decoder:
             
             err = u.ErrorCode.NO_ERROR
             cur_stage = self._get_cur_stage()
+            #print "STAG", cur_stage            
+            #print cur, dur
+            
             if (dur < self._lo or dur > self._hi) and (cur_stage == miller_decoder.ZERO_STAGE_0 or cur_stage == miller_decoder.ONE_STAGE_1):
                 self._process_bit(self._cur_type)
                 err = u.ErrorCode.TOO_LONG # to finish
@@ -173,6 +176,8 @@ class miller_decoder:
                 rets = self.handle_os1(cur, dur)
             else:
                 self._process_bit(u.ErrorCode.INTERNAL)
+
+         #   print "RETS", rets
 
             for ret in rets:
                 self._process_bit(ret)
