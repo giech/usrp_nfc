@@ -20,16 +20,29 @@ class background:
         thread.daemon = True # Daemonize thread
         thread.start() 
 
-    def append(self, transitions, t):
-        self._deque.append((transitions, t))
+    def append(self, transitions):
+        self._deque.append(transitions)
+
+    def process_transitions(self, transitions, t):
+        if t == PacketType.TAG_TO_READER and self._tag:
+            self._tag.process_transition(transitions)
+        elif t == PacketType.READER_TO_TAG and self._reader:
+            self._reader.process_transition(transitions)
 
     def run(self):
         while True:
             if not self._deque:
                 continue
-            transitions, t = self._deque.popleft()
-            if t == PacketType.TAG_TO_READER and self._tag:
-                self._tag.process_transition([transitions])
-            elif t == PacketType.READER_TO_TAG and self._reader:
-                self._reader.process_transition([transitions])
+            transitions = self._deque.popleft()
+            a = [] 
+            cur = PacketType.TAG_TO_READER
+            for val, t in transitions:
+                if t == cur:
+                    a.append(val)
+                else:
+                    self.process_transitions(a, cur)
+                    a = [val]
+                    cur = t
+            if a:
+                self.process_transitions(a, cur)
                 
