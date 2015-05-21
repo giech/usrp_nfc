@@ -15,6 +15,9 @@ class PulseLength:
     FULL = 9.44
     ZERO  = 3.00
     HALF  = FULL/2
+    ZERO_REM = FULL - ZERO
+    ONE_REM = HALF - ZERO
+    ONE_HALF = FULL + HALF
 
 
 class CRC:        
@@ -29,7 +32,7 @@ class CRC:
             b = b ^ (b << 4) & 0xFF
             wcrc = ((wcrc >> 8) ^ (b << 8) ^ (b << 3) ^ (b >> 4))
         
-        if (cktp == CRC_14443_B):
+        if (cktp == CRC.CRC_14443_B):
             wcrc = ~wcrc
 
         return [wcrc & 0xFF, (wcrc >> 8) & 0xFF]
@@ -38,3 +41,17 @@ class CRC:
     def check_crc(data, cktp=CRC_14443_A):
         crc = calculate_crc(data[:-2], cktp)
         return crc[0] == data[-2] and crc[1] == data[-1]
+
+class BCC:
+
+    @staticmethod
+    def calculate_bcc(serial): # length should be 7
+        bcc0 = 0x88
+        bcc1 = 0
+        for byte in serial[:3]:
+            bcc0 ^= byte
+
+        for byte in serial[3:]:
+            bcc1 ^= byte
+
+        return [bcc0, bcc1]

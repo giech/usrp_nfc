@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import utilities
+
 class PacketError:
     NO_ERROR     = 0
     PARITY_ERROR = 1
@@ -21,6 +23,166 @@ class PacketType:
         else:
             raise ValueError('Unknown Packet Type', str(t))
 
+
+class Command:
+
+    def __init__(self, name, init_bytes, packet_type, crc=False, num_extra_bytes=0):
+        self._name = name        
+        self._init_bytes = []
+        self._init_bytes[:] = init_bytes
+        self._packet_type = packet_type
+        self._crc = crc
+        self._num_extra_bytes = num_extra_bytes
+        self._len = len(init_bytes) + num_extra_bytes + (2 if crc else 0)
+
+    def name(self):
+        return self._name
+    
+    def packet_type(self):
+        return self._packet_type
+
+    def needs_crc(self):
+        return self._crc
+
+    def num_extra_bytes(self):
+        return self._num_extra_bytes
+
+    def header(self):
+        return self._init_bytes
+
+    def total_len(self):
+        return self._len
+  
+class CommandStructure:
+
+    def __init__(self, name, header, extra=[], crc=[]):
+        self._name = name
+        self._header = header
+        self._extra = extra
+        self._crc = crc
+
+    def name(self):
+        return self._name
+    
+    def header(self):
+        return self._header
+   
+    def extra(self):
+        return self._extra
+
+    def crc(self):
+        return self._crc
+
+    @staticmethod
+    def pretty_print(bytes):
+        for byte in bytes:
+            print format(byte, "#04X"),
+
+    def display(self):
+        print "COMMAND:", self._name
+        print "HEADER:", 
+        CommandStructure.pretty_print(self._header)
+        print "\nEXTRA:",
+        CommandStructure.pretty_print(self._extra)
+        print "\nCRC:",
+        CommandStructure.pretty_print(self._crc)
+        print '\n'
+        
+
+class CommandType:
+    REQA   = Command("REQA", [0x26], PacketType.READER_TO_TAG)
+    WUPA   = Command("WUPA", [0x52], PacketType.READER_TO_TAG)
+    ATQA   = Command("ATQA", [0x44, 0x00], PacketType.TAG_TO_READER)
+    ANTI1R = Command("ANTI1R", [0x93, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
+    ANTI1T = Command("ANTI1T", [0x88], PacketType.TAG_TO_READER, num_extra_bytes=4)
+    SEL1R  = Command("SEL1R", [0x93, 0x70, 0x88], PacketType.READER_TO_TAG, True, 4)
+    SEL1T  = Command("SEL1T", [0x04], PacketType.TAG_TO_READER, True)
+    ANTI2R = Command("ANTI2R", [0x95, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
+    ANTI2T = Command("ANTI2T", [], PacketType.TAG_TO_READER, num_extra_bytes=5)
+    SEL2R  = Command("SEL2R", [0x95, 0x70], PacketType.READER_TO_TAG, True, 5)
+    SEL2T  = Command("SEL2T", [0x00], PacketType.TAG_TO_READER, True)
+    READR  = Command("READR", [0x30], PacketType.READER_TO_TAG, True, 1)
+    READT  = Command("READT", [], PacketType.TAG_TO_READER, True, 16)
+    HALT   = Command("HALT", [0x50, 0x00], PacketType.READER_TO_TAG, True)
+    WRITE  = Command("WRITE", [0xA2], PacketType.READER_TO_TAG, True, 5)
+    COMPW1 = Command("COMPW1", [0xA0], PacketType.READER_TO_TAG, True, 1)
+    COMPW2 = Command("COMPW2", [], PacketType.READER_TO_TAG, True, 16)
+
+    _map_first_bytes = {0x00: [SEL2T],
+                        0x04: [SEL1T],
+                        0x26: [REQA],
+                        0x30: [READR], 
+                        0x44: [ATQA],
+                        0x50: [HALT], 
+                        0x52: [WUPA],
+                        0x88: [ANTI1T],
+                        0x93: [ANTI1R, SEL1R],
+                        0x95: [ANTI2R, SEL2R],
+                        0xA0: [COMPW1],
+                        0xA2: [WRITE]
+                       }
+
+    _map_second_bytes = {0x00: [ATQA, HALT],
+                         0x20: [ANTI1R, ANTI2R],
+                         0x70: [SEL1R, SEL2R]
+                        }
+
+    # should really just follow previous commands...
+    @staticmethod
+    def get_command_type(bytes):
+        try:
+            first_options = CommandType._map_first_bytes[bytes[0]]
+            option = first_options[0] 
+            if len(first_options) > 1:
+                second_options = CommandType._map_second_bytes[bytes[1]]
+                if first_options[1] in second_options:
+                    option = first_options[1]            
+            
+            if option.total_len() == len(bytes):
+                return option            
+            
+        except KeyError:
+            pass
+        return None
+
+    @staticmethod
+    def decode_command(bytes):
+        tp = CommandType.get_command_type(bytes)
+        if not tp:
+            s = CommandStructure("UNKNOWN", [], bytes)
+        else:
+            name = tp.name()
+          #  if name == "REQA":
+          #      return
+            header = tp.header()
+            crc = bytes[-2:] if tp.needs_crc() else []
+            extra = bytes[len(header):len(bytes)-len(crc)]
+
+            s = CommandStructure(name, tp.header(), extra, crc)
+        s.display()
+
+    @staticmethod
+    def get_bytes(command, extra_bytes = []):
+        bytes = []
+        bytes[:] = command.header()
+        bytes.extend(extra_bytes)
+        if command.needs_crc():
+            bytes.extend(utilities.CRC.calculate_crc(bytes))
+        return bytes
+
+    
+    @staticmethod
+    def get_bits(command, all_bytes):
+        bits = [PacketType.start_bit(command.packet_type())] # maybe remove this
+        for byte in all_bytes:
+            set_bits = 0
+            for i in xrange(8):
+                bit = byte & 1
+                set_bits += bit
+                byte >>= 1
+                bits.append(bit)
+            bits.append(1 - (set_bits & 1)) # 1 if even number
+        return bits
 
 class Packet:
     def __init__(self, packet_type):
@@ -72,14 +234,9 @@ class Packet:
             return PacketError.TRUNCATED_ERROR
         else:
             return PacketError.NO_ERROR
-        
 
-    # should not be method
-    def process_packet(self):
-        print "PACKET START, TYPE ", self._type
-        for byte in self._bytes:    
-            print format(byte, "#04X")
-        print "PACKET END"
+    def get_bytes(self):
+        return self._bytes
 
 
 class PacketProcessor:
@@ -105,7 +262,7 @@ class PacketProcessor:
         else:
             if not self._started and bit == PacketType.start_bit(self._type):
                 self._started = True
-            else:
+            else: # check logic
                 ret = self._cur.append_bit(bit)
         return ret
 
@@ -132,10 +289,31 @@ class CombinedPacketProcessor:
         if ret == PacketError.NO_ERROR:
             if self._packet_lens[packet_type] != l:
                 self._packet_lens[packet_type] = l
-                pp.get_packets()[-1].process_packet()
-        else:
+                bytes = pp.get_packets()[-1].get_bytes()
+                if bytes:
+                    CommandType.decode_command(bytes)
+        else:       
             print "ERROR", ret 
         return ret
     
-
+if __name__ == '__main__':
+    uid = [0x04, 0xBE, 0x6F, 0x22, 0x09, 0x29, 0x80]
+    bcc = utilities.BCC.calculate_bcc(uid)
+    part1 = []
+    part1[:] = uid[0:3]
+    part1.append(bcc[0])
+    part2 = []
+    part2[:] = uid[3:]
+    part2.append(bcc[1])
+    commands = [CommandType.get_bytes(CommandType.REQA),
+                CommandType.get_bytes(CommandType.ATQA),
+                CommandType.get_bytes(CommandType.ANTI1R),
+                CommandType.get_bytes(CommandType.SEL1R, part1),
+                CommandType.get_bytes(CommandType.ANTI2T, part2)
+               ]
+    for command in commands:
+        print "PACKET START, TYPE "
+        for byte in command:    
+            print format(byte, "#04X")
+        print "PACKET END"
     

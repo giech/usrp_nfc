@@ -84,7 +84,7 @@ class miller_decoder:
                 self._set_cur_stage(miller_decoder.ONE_STAGE_0)
             elif self._is_close(dur, u.PulseLength.FULL):
                 rets.append(bit) 
-            elif self._is_close(dur, u.PulseLength.FULL + u.PulseLength.HALF):
+            elif self._is_close(dur, u.PulseLength.ONE_HALF):
                 rets.append(bit)
                 self._set_cur_stage(miller_decoder.ONE_STAGE_0)
             else:   
@@ -96,10 +96,10 @@ class miller_decoder:
         if cur == 0:
             rets.append(u.ErrorCode.ENCODING)
         else:
-            if self._is_close(dur, u.PulseLength.FULL - u.PulseLength.ZERO):
+            if self._is_close(dur, u.PulseLength.ZERO_REM):
                 self._set_cur_stage(miller_decoder.BEGINNING)
                 rets.append(0)
-            elif self._is_close(dur, u.PulseLength.FULL + u.PulseLength.HALF - u.PulseLength.ZERO):
+            elif self._is_close(dur, u.PulseLength.ZERO_REM + u.PulseLength.HALF):
                 self._set_cur_stage(miller_decoder.ONE_STAGE_0)
                 rets.append(0)
             else:
@@ -122,20 +122,20 @@ class miller_decoder:
         
         if cur != 1:
             rets.append(u.ErrorCode.ENCODING)
-        elif self._is_close(dur, u.PulseLength.HALF - u.PulseLength.ZERO):
+        elif self._is_close(dur, u.PulseLength.ONE_REM):
             rets.append(1)
             self._set_cur_stage(miller_decoder.BEGINNING)
         else:
             rets.append(1)
             self._set_cur_stage(miller_decoder.BEGINNING)
 
-            dur -= (u.PulseLength.HALF - u.PulseLength.ZERO)
+            dur -= (u.PulseLength.ONE_REM)
 
             if self._is_close(dur, u.PulseLength.FULL):
                 rets.append(0)
             elif self._is_close(dur, u.PulseLength.HALF):
                 self._set_cur_stage(miller_decoder.ONE_STAGE_0)
-            elif self._is_close(dur, u.PulseLength.FULL + u.PulseLength.HALF):
+            elif self._is_close(dur, u.PulseLength.ONE_HALF):
                 rets.append(0)
                 self._set_cur_stage(miller_decoder.ONE_STAGE_0)
             else:
@@ -192,3 +192,45 @@ class miller_decoder:
                 else:
                     self._prev = ret
 
+
+class miller_encoder:
+    ONE   = [(1, u.PulseLength.HALF), (0, u.PulseLength.ZERO), (1, u.PulseLength.ONE_REM)]
+    ZERO0 = [(0, u.PulseLength.ZERO), (1, u.PulseLength.ZERO_REM)]
+    ZERO1 = [(1, u.PulseLength.FULL)]
+
+    @staticmethod
+    def encode_bits(bits):
+        durs = []
+        cur_bits = []
+        durs.extend(miller_encoder.ZERO0)
+        last_bit = 0        
+
+        for bit in bits[1:]:
+            last_pulse, last_dur = durs[-1]
+            cur_bits[:] = miller_encoder.ONE
+            if bit == 0:
+                if last_bit == 0:
+                    cur_bits[:] = miller_encoder.ZERO0
+                else:
+                    cur_bits[:] = miller_encoder.ZERO1
+
+            start_pulse, start_dur = cur_bits[0]
+            if start_pulse == last_pulse:
+                cur_dur = start_dur + last_dur
+                durs[-1] = (start_pulse, cur_dur)
+                durs.extend(cur_bits[1:])
+            else:
+                durs.extend(cur_bits)
+            
+                
+        return durs
+
+
+if __name__ == '__main__':
+    from packets import CommandType
+    bytes = CommandType.get_bytes(CommandType.ANTI1R) 
+    bits = CommandType.get_bits(CommandType.ANTI1R, bytes)    
+    print bits
+    ans = miller_encoder.encode_bits(bits)
+    for pair in ans:
+        print pair
