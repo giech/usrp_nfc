@@ -26,14 +26,19 @@ class PacketType:
 
 class Command:
 
-    def __init__(self, name, init_bytes, packet_type, crc=False, num_extra_bytes=0):
-        self._name = name        
+    def __init__(self, name, stage, init_bytes, packet_type, crc=False, num_extra_bytes=0, xor_check=-1):
+        self._name = name 
+        self._stage = stage       
         self._init_bytes = []
         self._init_bytes[:] = init_bytes
         self._packet_type = packet_type
         self._crc = crc
         self._num_extra_bytes = num_extra_bytes
         self._len = len(init_bytes) + num_extra_bytes + (2 if crc else 0)
+        self._xor = xor_check
+
+    def stage(self):
+        return self._stage
 
     def name(self):
         return self._name
@@ -52,7 +57,37 @@ class Command:
 
     def total_len(self):
         return self._len
-  
+
+     
+    def is_compatible(self, bytes):
+        end_len = len(bytes)        
+        if self._len != end_len:
+            return False
+
+        init_bytes = self._init_bytes
+        header_len = len(init_bytes)
+        for i in xrange(header_len):
+            if init_bytes[i] != bytes[i]:
+                return False
+
+        
+
+        if self._crc:
+            end_len -= 2
+            if not utilities.CRC.check_crc(bytes):
+                return False
+
+        if self._xor >= 0:
+            a = self._xor
+            for b in bytes[header_len: end_len]:
+                a ^= b 
+            if a != 0:
+                return False
+         #   print "XOR passed"    
+
+        return True
+
+
 class CommandStructure:
 
     def __init__(self, name, header, extra=[], crc=[]):
@@ -80,41 +115,84 @@ class CommandStructure:
 
     def display(self):
         print "COMMAND:", self._name
-        print "HEADER:", 
-        CommandStructure.pretty_print(self._header)
-        print "\nEXTRA:",
-        CommandStructure.pretty_print(self._extra)
-        print "\nCRC:",
-        CommandStructure.pretty_print(self._crc)
+        if self._header:
+            print "HEADER:", 
+            CommandStructure.pretty_print(self._header)
+            print ''
+        if self._extra:
+            print "EXTRA:",
+            CommandStructure.pretty_print(self._extra)
+            print ''
+        if self._crc:        
+            print "CRC:",
+            CommandStructure.pretty_print(self._crc)
+            print ''
         print '\n'
         
 
 class CommandType:
-    REQA   = Command("REQA", [0x26], PacketType.READER_TO_TAG)
-    WUPA   = Command("WUPA", [0x52], PacketType.READER_TO_TAG)
-    ATQA   = Command("ATQA", [0x44, 0x00], PacketType.TAG_TO_READER)
-    ANTI1R = Command("ANTI1R", [0x93, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
-    ANTI1T = Command("ANTI1T", [0x88], PacketType.TAG_TO_READER, num_extra_bytes=4)
-    SEL1R  = Command("SEL1R", [0x93, 0x70, 0x88], PacketType.READER_TO_TAG, True, 4)
-    SEL1T  = Command("SEL1T", [0x04], PacketType.TAG_TO_READER, True)
-    ANTI2R = Command("ANTI2R", [0x95, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
-    ANTI2T = Command("ANTI2T", [], PacketType.TAG_TO_READER, num_extra_bytes=5)
-    SEL2R  = Command("SEL2R", [0x95, 0x70], PacketType.READER_TO_TAG, True, 5)
-    SEL2T  = Command("SEL2T", [0x00], PacketType.TAG_TO_READER, True)
-    READR  = Command("READR", [0x30], PacketType.READER_TO_TAG, True, 1)
-    READT  = Command("READT", [], PacketType.TAG_TO_READER, True, 16)
-    HALT   = Command("HALT", [0x50, 0x00], PacketType.READER_TO_TAG, True)
-    WRITE  = Command("WRITE", [0xA2], PacketType.READER_TO_TAG, True, 5)
-    COMPW1 = Command("COMPW1", [0xA0], PacketType.READER_TO_TAG, True, 1)
-    COMPW2 = Command("COMPW2", [], PacketType.READER_TO_TAG, True, 16)
+    REQA   = Command("REQA", 0, [0x26], PacketType.READER_TO_TAG)
+    WUPA   = Command("WUPA", 0, [0x52], PacketType.READER_TO_TAG)
+    ATQAUL = Command("ATQAUL", 0, [0x44, 0x00], PacketType.TAG_TO_READER)
+    ATQA1K = Command("ATQA1K", 0, [0x04, 0x00], PacketType.TAG_TO_READER) ### DIFFERENT
+    ANTI1R = Command("ANTI1R", 1, [0x93, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
+    ANTI1T = Command("ANTI1T", 1, [0x88], PacketType.TAG_TO_READER, num_extra_bytes=4, xor_check=0x88)
+    SEL1R  = Command("SEL1R", 2, [0x93, 0x70], PacketType.READER_TO_TAG, True, 5, xor_check=0) # DIFFERENT VALUE
+    SEL1U  = Command("SEL1U", 2, [0x04], PacketType.TAG_TO_READER, True)
+    
+    SEL1K  = Command("SEL1K", 2, [0x08], PacketType.TAG_TO_READER, True)
+
+
+    ANTI2R = Command("ANTI2R", 3, [0x95, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
+    ANTI2T = Command("ANTI2T", 3, [], PacketType.TAG_TO_READER, num_extra_bytes=5, xor_check=0)
+
+    AUTHA  = Command("AUTHA", 3, [0x60], PacketType.READER_TO_TAG, True, 1)
+    
+    AUTHB  = Command("AUTHB", 3, [0x61], PacketType.READER_TO_TAG, True, 1)
+    
+    SEL2R  = Command("SEL2R", 4, [0x95, 0x70], PacketType.READER_TO_TAG, True, 5, xor_check=0)
+    SEL2T  = Command("SEL2T", 4, [0x00], PacketType.TAG_TO_READER, True)
+    READR  = Command("READR", 5, [0x30], PacketType.READER_TO_TAG, True, 1)
+    READT  = Command("READT", 5, [], PacketType.TAG_TO_READER, True, 16)
+
+
+    HALT   = Command("HALT", 10, [0x50, 0x00], PacketType.READER_TO_TAG, True)
+
+    # not yet seen
+    WRITE  = Command("WRITE", 6, [0xA2], PacketType.READER_TO_TAG, True, 5)
+    COMPW1 = Command("COMPW1", 6, [0xA0], PacketType.READER_TO_TAG, True, 1)
+    COMPW2 = Command("COMPW2", 7, [], PacketType.READER_TO_TAG, True, 16)
+
+
+    _tag_commands = {0: [ATQAUL, ATQA1K],
+                     1: [ANTI1T],
+                     2: [SEL1U, SEL1K],
+                     3: [ANTI2T],
+                     4: [SEL2T],
+                     5: [READT]
+                    }
+
+    _reader_commands = {0: [REQA, WUPA],
+                        1: [ANTI1R],
+                        2: [SEL1R],
+                        3: [ANTI2R, AUTHA, AUTHB],
+                        4: [SEL2R],
+                        5: [READR],
+                        6: [WRITE, COMPW1],
+                        7: [COMPW2],
+                       10: [HALT]
+                       }   
 
     _map_first_bytes = {0x00: [SEL2T],
-                        0x04: [SEL1T],
+                        0x04: [SEL1U, ATQA1K],
+                        0x08: [SEL1K],
                         0x26: [REQA],
                         0x30: [READR], 
-                        0x44: [ATQA],
+                        0x44: [ATQAUL],
                         0x50: [HALT], 
                         0x52: [WUPA],
+                        0x60: [AUTHA],
+                        0x61: [AUTHB],
                         0x88: [ANTI1T],
                         0x93: [ANTI1R, SEL1R],
                         0x95: [ANTI2R, SEL2R],
@@ -122,14 +200,28 @@ class CommandType:
                         0xA2: [WRITE]
                        }
 
-    _map_second_bytes = {0x00: [ATQA, HALT],
+    _map_second_bytes = {0x00: [ATQAUL, HALT, ATQA1K],
                          0x20: [ANTI1R, ANTI2R],
                          0x70: [SEL1R, SEL2R]
                         }
 
     # should really just follow previous commands...
     @staticmethod
-    def get_command_type(bytes):
+    def get_command_type(bytes, state, packet_type):
+        ar = CommandType._tag_commands if packet_type == PacketType.TAG_TO_READER else CommandType._reader_commands
+        ar_len = len(ar)
+        ind = state.stage()
+        
+    
+        for v in (ind, ind+1):
+            if v < ar_len:
+                poss = ar[v]
+                for p in poss:
+                    if p.is_compatible(bytes):
+                        return p
+        
+
+
         try:
             first_options = CommandType._map_first_bytes[bytes[0]]
             option = first_options[0] 
@@ -138,7 +230,7 @@ class CommandType:
                 if first_options[1] in second_options:
                     option = first_options[1]            
             
-            if option.total_len() == len(bytes):
+            if option.is_compatible(bytes):
                 return option            
             
         except KeyError:
@@ -146,10 +238,11 @@ class CommandType:
         return None
 
     @staticmethod
-    def decode_command(bytes):
-        tp = CommandType.get_command_type(bytes)
+    def decode_command(bytes, state, packet_type):
+        tp = CommandType.get_command_type(bytes, state, packet_type)
         if not tp:
-            s = CommandStructure("UNKNOWN", [], bytes)
+            name = "UNKNOWN"
+            s = CommandStructure(name, [], bytes)
         else:
             name = tp.name()
           #  if name == "REQA":
@@ -157,9 +250,14 @@ class CommandType:
             header = tp.header()
             crc = bytes[-2:] if tp.needs_crc() else []
             extra = bytes[len(header):len(bytes)-len(crc)]
-
+            # should add extra description stuff
             s = CommandStructure(name, tp.header(), extra, crc)
-        s.display()
+
+        if name != state.name():
+            s.display()
+        else:
+            print name
+        return tp or state
 
     @staticmethod
     def get_bytes(command, extra_bytes = []):
@@ -275,6 +373,7 @@ class PacketProcessor:
 
 class CombinedPacketProcessor:
     def __init__(self):
+        self._current_state = CommandType.REQA
         self._packet_processors = []
         self._packet_lens = []
         for i in range(PacketType.NUM_TYPES):
@@ -291,7 +390,7 @@ class CombinedPacketProcessor:
                 self._packet_lens[packet_type] = l
                 bytes = pp.get_packets()[-1].get_bytes()
                 if bytes:
-                    CommandType.decode_command(bytes)
+                    self._current_state = CommandType.decode_command(bytes, self._current_state, packet_type)
         else:       
             print "ERROR", ret 
         return ret

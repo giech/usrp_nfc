@@ -39,7 +39,7 @@ class CRC:
 
     @staticmethod
     def check_crc(data, cktp=CRC_14443_A):
-        crc = calculate_crc(data[:-2], cktp)
+        crc = CRC.calculate_crc(data[:-2], cktp)
         return crc[0] == data[-2] and crc[1] == data[-1]
 
 class BCC:
