@@ -17,23 +17,25 @@ class nfc_eavesdrop(gr.top_block):
 
         if src == "uhd":
             self._src = usrp_src.usrp_src()
+            hi_val = 1.05
         else:
             self._src = blocks.wavfile_source(src, False)
+            hi_val = 1.05 # 1.1
 
         reader = decode == "all" or decode == "reader"
         tag = decode == "all" or decode == "tag"
 
 
         self._back = background.background(reader, tag)    
-        self._trans = transition_sink.transition_sink(samp_rate, self._back.append)
+        self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
         self._connect(self._src, self._trans)
         
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    src =  "uhd" #"/home/ilias/Desktop/recs/ultralight.wav"    
-    decode = "reader"
+    src =  "/home/ilias/Desktop/recs/1k.wav"    
+    decode = "all" #"tag"
     gr.enable_realtime_scheduling()
     tb = nfc_eavesdrop(src=src, decode=decode)
     tb.run()

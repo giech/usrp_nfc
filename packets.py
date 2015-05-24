@@ -136,7 +136,8 @@ class CommandType:
     ATQAUL = Command("ATQAUL", 0, [0x44, 0x00], PacketType.TAG_TO_READER)
     ATQA1K = Command("ATQA1K", 0, [0x04, 0x00], PacketType.TAG_TO_READER) ### DIFFERENT
     ANTI1R = Command("ANTI1R", 1, [0x93, 0x20], PacketType.READER_TO_TAG) # says 0x20 to 0x67?
-    ANTI1T = Command("ANTI1T", 1, [0x88], PacketType.TAG_TO_READER, num_extra_bytes=4, xor_check=0x88)
+    ANTI1U = Command("ANTI1U", 1, [0x88], PacketType.TAG_TO_READER, num_extra_bytes=4, xor_check=0x88) #ultralight
+    ANTI1G = Command("ANTI1G", 1, [], PacketType.TAG_TO_READER, num_extra_bytes=5, xor_check=0) #general
     SEL1R  = Command("SEL1R", 2, [0x93, 0x70], PacketType.READER_TO_TAG, True, 5, xor_check=0) # DIFFERENT VALUE
     SEL1U  = Command("SEL1U", 2, [0x04], PacketType.TAG_TO_READER, True)
     
@@ -165,7 +166,7 @@ class CommandType:
 
 
     _tag_commands = {0: [ATQAUL, ATQA1K],
-                     1: [ANTI1T],
+                     1: [ANTI1U, ANTI1G],
                      2: [SEL1U, SEL1K],
                      3: [ANTI2T],
                      4: [SEL2T],
@@ -193,7 +194,7 @@ class CommandType:
                         0x52: [WUPA],
                         0x60: [AUTHA],
                         0x61: [AUTHB],
-                        0x88: [ANTI1T],
+                        0x88: [ANTI1U],
                         0x93: [ANTI1R, SEL1R],
                         0x95: [ANTI2R, SEL2R],
                         0xA0: [COMPW1],
@@ -256,7 +257,7 @@ class CommandType:
         if name != state.name():
             s.display()
         else:
-            print name
+            print name, '\n'
         return tp or state
 
     @staticmethod
@@ -297,6 +298,8 @@ class Packet:
     def append_bit(self, bit):
         if self._closed:
             return PacketError.CLOSED_ERROR
+
+    #    print bit
         
         if self._cur_bits < 8:       
             self._cur_byte |= bit << self._cur_bits
@@ -358,6 +361,7 @@ class PacketProcessor:
                     self._packets.append(self._cur)
                 self._reset_packet()
         else:
+          #  print bit
             if not self._started and bit == PacketType.start_bit(self._type):
                 self._started = True
             else: # check logic
@@ -381,7 +385,6 @@ class CombinedPacketProcessor:
             self._packet_lens.append(0)
 
     def append_bit(self, bit, packet_type):
-
         pp = self._packet_processors[packet_type]     
         ret = pp.append_bit(bit)
         l = pp.get_packet_length() 
@@ -413,6 +416,6 @@ if __name__ == '__main__':
     for command in commands:
         print "PACKET START, TYPE "
         for byte in command:    
-            print format(byte, "#04X")
+            print format(byte, "#04x")
         print "PACKET END"
     

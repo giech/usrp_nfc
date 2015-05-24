@@ -5,7 +5,7 @@ from gnuradio import gr
 
 class transition_sink(gr.sync_block):
     "Transition sink" 
-    def __init__(self, samp_rate, callback, lo_val = 0.1, hi_val = 1.1, av_window=1000, max_len=50):
+    def __init__(self, samp_rate, callback, lo_val = 0.1, hi_val = 1.1, av_window=2000, max_len=50):
         gr.sync_block.__init__(
             self,
             name = "transition_sink",
@@ -50,8 +50,10 @@ class transition_sink(gr.sync_block):
         for bit in ii0:
             prev = ar[index]
             prev_state = cur_state
-
             ratio = bit*length/ss
+
+        #    print bit*100, ss/length*100
+
             if lo > ratio:
                 val = -1
                 cur = prev
@@ -74,7 +76,9 @@ class transition_sink(gr.sync_block):
             else:
                 d = mx if prev_state == 0 else dur
                 v = last_bit + 1 if cur_state == 2 else last_bit
-                callbacks.append(((v, d*factor), cur_state - 1))
+                x = ((v, d*factor), cur_state - 1)
+               # print x
+                callbacks.append(x)
                 dur = 1
                 last_bit = val
 
