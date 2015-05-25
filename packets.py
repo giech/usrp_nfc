@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import cipher
 import utilities
 
 class PacketError:
@@ -215,7 +216,7 @@ class CommandType:
     def get_command_type(bytes, state, packet_type):
         ar = CommandType._tag_commands if packet_type == PacketType.TAG_TO_READER else CommandType._reader_commands
         ar_len = len(ar)
-        ind = state.stage()
+        ind = state.get_cur_cmd().stage()
         
     
         for v in (ind, ind+1):
@@ -243,9 +244,39 @@ class CommandType:
         return None
 
     @staticmethod
-    def decode_command(packet, state, packet_type):
+    def get_decrypted_bytes(packet, state):
+        c = state.get_cipher()
         bytes = packet.get_bytes()
+        cmd = state.get_cur_cmd()
+        if c: # and cmd != CommandType.AUTHA:
+            
+            ll = len(bytes)
+            if cmd == CommandType.RANDTA and ll == CommandType.RANDRB.total_len():
+                rdr_enc_nonce = bytes[0:ll/2]
+                rdr_nonce = c.recover_reader_nonce(rdr_enc_nonce)
+                enc_ar = bytes[ll/2:]
+                ar = c.recover_next_bytes(enc_ar)
+                if not c.check_ar(ar):
+                    print 'ERROR WITH AR'
+                ret = rdr_nonce + ar
+            elif cmd == CommandType.RANDRB and ll == CommandType.RANDTB.total_len():
+                ret = c.recover_next_bytes(bytes)
+                if not c.check_at(ret):
+                    print "ERROR WITH AT"
+            else:
+                ret = c.recover_next_bytes(bytes)
+            
+            if not packet.check_parity(ret, c.get_last_parity_bits(ll)):
+                print 'PROBLEM WITH PARITY!!!'
+            return ret
+        else:
+            return bytes
+
+    @staticmethod
+    def decode_command(packet, state, packet_type):
+        bytes = CommandType.get_decrypted_bytes(packet, state)
         tp = CommandType.get_command_type(bytes, state, packet_type)
+        cur_name = state.get_cur_cmd().name()
         if not tp:
             name = "UNKNOWN"
             s = CommandStructure(name, [], bytes)
@@ -256,12 +287,23 @@ class CommandType:
             extra = bytes[len(header):len(bytes)-len(crc)]
             # should add extra description stuff
             s = CommandStructure(name, tp.header(), extra, crc)
+            state.set_cur_cmd(tp)
 
-        if name != state.name():
+            if tp == CommandType.ANTI1G:
+                uid = extra[0:4]
+                state.set_uid(uid)
+            elif tp == CommandType.RANDTA:
+                key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+                c = cipher.cipher(key, state.get_uid(), extra)
+                state.set_cipher(c)
+            elif tp == CommandType.REQA or tp == CommandType.HALT:
+                state.set_cipher(None)
+                
+
+        if name != cur_name:
             s.display()
         else:
             print name, '\n'
-        return tp or state
 
     @staticmethod
     def get_bytes(command, extra_bytes = []):
@@ -286,6 +328,33 @@ class CommandType:
             bits.append(1 - (set_bits & 1)) # 1 if even number
         return bits
 
+
+
+class State:
+
+    def __init__(self, init_cmd=CommandType.REQA):
+        self.set_cur_cmd(init_cmd)
+        self._uid = None
+        self._cipher = None
+    
+    def set_cur_cmd(self, cmd):
+        self._cmd = cmd
+
+    def get_cur_cmd(self):
+        return self._cmd
+
+    def set_uid(self, uid):
+        self._uid = uid
+
+    def get_uid(self):
+        return self._uid
+
+    def set_cipher(self, cipher):
+        self._cipher = cipher
+
+    def get_cipher(self):
+        return self._cipher
+
 class Packet:
     def __init__(self, packet_type, enc=False):
         self._bytes = []
@@ -303,8 +372,6 @@ class Packet:
     def append_bit(self, bit):
         if self._closed:
             return PacketError.CLOSED_ERROR
-
-    #    print bit
         
         if self._cur_bits < 8:       
             self._cur_byte |= bit << self._cur_bits
@@ -322,6 +389,7 @@ class Packet:
             else:      
                 if ok:
                     self._bytes.append(cur)
+                    self._parity.append(bit)
                     return PacketError.NO_ERROR
                 else:
                     return PacketError.PARITY_ERROR
@@ -335,7 +403,7 @@ class Packet:
             s = self._set_bits & 1
             if s != PacketType.start_bit(self._type) or self._enc: # explain?
                self._bytes.append(self._cur_byte)
-               self._parity.append(1 - s)
+               self._parity.append(PacketType.start_bit(self._type))#1 - s)
                return PacketError.NO_ERROR
             else:
                return PacketError.PARITY_CLOSE_ERROR
@@ -350,11 +418,28 @@ class Packet:
     def get_bytes(self):
         return self._bytes
 
-    def get_parity(self):
-        return self._parity
-
     def is_encrypted(self):
         return self._enc
+
+    def check_parity(self, bytes, enc_parity):
+        ll = len(bytes)
+        p = self._parity
+        if ll != len(p):
+            print "HERE:", lep(p), ll, len(enc_parity)
+            return False
+        for i in xrange(ll):
+            s = 0
+            b = bytes[i]
+            for j in xrange(8):
+                s += b &1
+                b >>= 1
+         #   print s&1, enc_parity[i], p[i]
+            if s&1^enc_parity[i] == p[i]:
+                print "ERROR HERE"
+                raise 1
+                return False
+
+        return True
 
 
 class PacketProcessor:
@@ -399,7 +484,7 @@ class PacketProcessor:
 
 class CombinedPacketProcessor:
     def __init__(self):
-        self._current_state = CommandType.REQA
+        self._current_state = State()
         self._packet_processors = []
         self._packet_lens = []
         for i in range(PacketType.NUM_TYPES):
@@ -415,11 +500,13 @@ class CombinedPacketProcessor:
                 self._packet_lens[packet_type] = l
                 packet = pp.get_packets()[-1]
                 if packet.get_bytes():
-                    self._current_state = CommandType.decode_command(packet, self._current_state, packet_type)
-                    if self._current_state == CommandType.REQA or self._current_state == CommandType.HALT:
+                    CommandType.decode_command(packet, self._current_state, packet_type)
+                    state = self._current_state # could have changed
+                    cur_cmd = state.get_cur_cmd()
+                    if cur_cmd == CommandType.REQA or cur_cmd == CommandType.HALT:
                         for pp in self._packet_processors:
                             pp.set_encryption(False)
-                    elif self._current_state == CommandType.RANDTA:
+                    elif cur_cmd == CommandType.RANDTA:
                         for pp in self._packet_processors:
                             pp.set_encryption(True)
         else:       

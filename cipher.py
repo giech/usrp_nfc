@@ -38,6 +38,7 @@ class cipher:
             bits.append(next_bit)
             k.append(enc_bit)
 
+
         k.extend(self.encrypt_next_bits(self._ar))
 
         k.extend(self.encrypt_next_bits(self._at))
@@ -81,11 +82,11 @@ class cipher:
                 cur |= bit << curi
                 curi += 1
             if curi == 8:
-                print format(cur, "#04x"), 
+     #           print format(cur, "#04x"), 
                 ret.append(cur)
                 curi = 0
                 cur = 0
-        print ''
+     #   print ''
         return ret
 
 
@@ -128,6 +129,20 @@ class cipher:
             bit_ar.append(l ^ unenc if xor else l)
 
         return cipher._to_byte_ar(u)
+
+    def get_last_parity_bits(self, num=4):
+        bits = []
+        ll = len(self._bits)
+        for i in xrange(num-1, -1, -1):
+            r = self._b(ll - 48 - 8*i)
+            bits.append(r)
+        return bits
+
+    def check_at(self, at):
+        return at == cipher._to_byte_ar(self._at)
+
+    def check_ar(self, ar):
+        return ar == cipher._to_byte_ar(self._ar)
 
     def _b(self, i):
         s = cipher._f(self._bits[i: i+48])
