@@ -11,7 +11,7 @@ class cipher:
     def get_at(self):
         return self._at[:]
 
-    def enc_bytes(self, bytes, xor=0, is_enc=0): # feedback, xor must be 0 or 1
+    def enc_bytes(self, bytes, xor=0, is_enc=0): # is_enc, xor must be 0 or 1
         bits = cipher._to_bit_ar(bytes)
         ll = len(bits)
         
@@ -34,7 +34,7 @@ class cipher:
         b = self.enc_bytes(xor, 1, is_enc)
         ans = [nonce[i] ^ b[i] for i in xrange(ll)]
 
-        bits = cipher._to_bit_ar(nonce)
+        bits = cipher._to_bit_ar(ans if is_enc else nonce)
         ls = lsfr.lsfr(bits, [16, 18, 19, 21])
         ls.advance(64)
         self._ar = cipher._to_byte_ar(ls.get_contents())
@@ -154,7 +154,7 @@ def p(bytes):
         print format(b, "#04x")
     print ''
 
-if __name__ == '__main2__':
+if __name__ == '__main3__':
     key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
     uid = [0x9c, 0x59, 0x9b, 0x32]
     tag_nonce = [0x82, 0xa4, 0x16, 0x6c]
@@ -165,6 +165,7 @@ if __name__ == '__main2__':
     enc_rr = [0x98, 0xd7, 0x6b, 0x77, 0xd6, 0xc6, 0xe8, 0x70] # EF 60 E2 6F 14 91 FB DB 
     enc_rrrr = [0xca, 0x7e, 0x0b, 0x63] # A5 38 5D 38 
 
+    '''
     cp = cipher(key)    
     cp.set_tag(uid, tag_nonce)
 
@@ -176,28 +177,88 @@ if __name__ == '__main2__':
     p(b)
     b = cp.enc_bytes_with_xor(enc_auth)
     p(b)
+'''
 
     cp2 = cipher(key)
     new_nonce = cp2.set_tag(uid, enc_tag, 1)
     print "NEW NONCE"
     p(new_nonce)
 
-
+    b = cp2.enc_bytes_with_xor(enc_rr[:4], 1)
+    p(b)
 
     cp2 = cipher(key)
     b = cp2.set_tag(uid, new_nonce)
     print "NONCE ENC"
     p(b)
 
-    b = cp2.enc_bytes_with_xor(enc_rr[0:4], 1, 1)
-    p(b)
+    print "AR"
+    p(cp2.get_ar())
 
-   # b = cp2.enc_bytes_with_xor([0xef, 0x60, 0xe2, 0x6f])
-   # p(b)
-    #p(cp2.get_ar())
+   # b = cp2.enc_bytes_with_xor(enc_rr[0:4], 1, 1)
+  #  p(b)
+
+    b = cp2.enc_bytes_with_xor([0xef, 0x60, 0xe2, 0x6f], 1, 0)
+    p(b)
 
 
 if __name__ == '__main__':
+    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    uid = [0XCD, 0X76, 0X92, 0X74]
+    enc_nonce = [0X70, 0xbd, 0Xed, 0X81] 
+    enc_rn = [0XD0, 0X3A, 0XF1, 0X16]
+    enc_ar = [0XDF, 0XFB, 0X98, 0XF8]
+
+
+    cp = cipher(key)
+    b = cp.set_tag(uid, enc_nonce, 1)
+    p(b)
+
+    b = cp.enc_bytes_with_xor(enc_rn, 1, 1)
+    p(b)
+
+    b = cp.enc_bytes_with_xor(enc_ar)
+    p(b)
+
+    p(cp.get_ar())
+
+if __name__ == '__main3__':
+    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    uid = [0x9c, 0x59, 0x9b, 0x32]
+
+    enc_nonce = [0x5a, 0x92, 0x0d, 0x85]
+    cp = cipher(key)
+    b = cp.set_tag(uid, enc_nonce, 1)
+    p(b)
+
+    rn_enc = [0x98, 0xd7, 0x6b, 0x77]
+    ar_enc = [0xd6, 0xc6, 0xe8, 0x70]
+    b = cp.enc_bytes_with_xor(rn_enc, 1, 1)
+    p(b)
+
+    b = cp.enc_bytes_with_xor(ar_enc)
+    p(b)
+
+    p(cp.get_ar())
+
+    # this works if you have plaintext
+    '''
+    rn = [0x77, 0xB7, 0x89, 0x18]
+    b = cp.enc_bytes_with_xor(rn,1)
+    p(b)
+
+    b = cp.enc_bytes_with_xor(cp.get_ar())
+    p(b)
+
+    b = cp.enc_bytes_with_xor([0xca, 0x7e, 0x0b, 0x63])
+    p(b)
+
+    p(cp.get_at())
+'''
+    #b = cp.enc_bytes_with_xor(cp.get_at())
+    #p(b)
+
+if __name__ == '__main2__':
     key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
     uid = [0x15, 0x4d, 0xe5, 0x21]
     tag_nonce = [0x08,  0x23, 0xb3, 0x16]
@@ -207,6 +268,7 @@ if __name__ == '__main__':
     enc_tag = [0x4e,  0xd9,  0xce,  0xa2] #   b1  0e  be  bc
     enc_rr = [0x7f,  0x16,  0x9a,  0x25,  0x50,  0xae,  0x0d,  0xe7 ] # 68  f0  cd  33  2e  bd  74  dc
 
+    '''
     cp = cipher(key)    
     cp.set_tag(uid, tag_nonce)
 
@@ -218,24 +280,31 @@ if __name__ == '__main__':
     p(b)
     b = cp.enc_bytes_with_xor(enc_auth)
     p(b)
+'''
 
     cp2 = cipher(key)
     new_nonce = cp2.set_tag(uid, enc_tag, 1)
     print "NEW NONCE"
     p(new_nonce)
 
+    rn = [0x68,  0xf0,  0xcd,  0x33]
+
+    print "HERE"
+    b = cp2.enc_bytes_with_xor(rn, xor=1)
+    p(b)
 
 
-    cp2 = cipher(key)
-    b = cp2.set_tag(uid, new_nonce)
+
+    cp3 = cipher(key)
+    b = cp3.set_tag(uid, new_nonce)
     print "NONCE ENC"
     p(b)
 
     print "AR"
-    p(cp2.get_ar())# 94 40 a7 42 WTF
+    p(cp3.get_ar())# 94 40 a7 42 WTF
 
-    b = cp2.enc_bytes_with_xor(enc_rr[0:4])
+    b = cp3.enc_bytes_with_xor(enc_rr[0:4])
     p(b)
 
-   # b = cp2.enc_bytes_with_xor([0xef, 0x60, 0xe2, 0x6f])
+   # b = cp2.enc_bytes_with_xor(rn)
    # p(b)

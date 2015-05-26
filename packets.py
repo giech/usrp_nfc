@@ -103,6 +103,9 @@ class CommandStructure:
     def header(self):
         return self._header
    
+    def set_extra(self, extra):
+        self._extra = extra
+
     def extra(self):
         return self._extra
 
@@ -250,14 +253,11 @@ class CommandType:
         prev_cmd = state.get_cur_cmd()
         if c:
             ll = len(bytes)
+            check_parity = True
             if prev_cmd == CommandType.AUTHA and ll == CommandType.RANDTA.total_len():
                 key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-                c = cipher.cipher(key)
-                print bytes
-                ret = c.set_tag(state.get_uid(), bytes)
-                state.set_cipher(c)
-                for i in ret:
-                    print format(i, "#04x")
+                ret = bytes
+                check_parity = False
             elif prev_cmd == CommandType.RANDTA and ll == CommandType.RANDRB.total_len():
                 rdr_enc_nonce = bytes[0:ll/2]
                 rdr_nonce = c.enc_bytes_with_xor(rdr_enc_nonce, 1, 1)
@@ -273,7 +273,7 @@ class CommandType:
             else:
                 ret = c.enc_bytes_with_xor(bytes)      
 
-            if not packet.check_parity(ret, c.get_last_parity_bits(ll)):
+            if check_parity and not packet.check_parity(ret, c.get_last_parity_bits(ll)):
                 print 'PROBLEM WITH PARITY!!!'
             return ret
         else:
@@ -292,6 +292,7 @@ class CommandType:
             header = tp.header()
             crc = bytes[-2:] if tp.needs_crc() else []
             extra = bytes[len(header):len(bytes)-len(crc)]
+
             # should add extra description stuff
             s = CommandStructure(name, tp.header(), extra, crc)
             state.set_cur_cmd(tp)
@@ -300,12 +301,17 @@ class CommandType:
                 uid = extra[0:4]
                 state.set_uid(uid)
             elif tp == CommandType.RANDTA:
-                print "GETTING RAND"
                 key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
                 c = cipher.cipher(key)
-                c.set_tag(state.get_uid(), extra)
-                if True or not state.get_cipher():
-                    state.set_cipher(c)
+                if not state.get_cipher():
+                    c.set_tag(state.get_uid(), extra)
+                else:
+                    bytes = packet.get_bytes()
+                    s.set_extra(extra)
+                    c.set_tag(state.get_uid(), extra, 1)
+                    print "PARITY CHECK", packet.check_parity(bytes, c.get_last_parity_bits(4))
+                   # raise 1
+                state.set_cipher(c)
             elif tp == CommandType.REQA or tp == CommandType.HALT:
                 state.set_cipher(None)
                 
@@ -444,15 +450,11 @@ class Packet:
             for j in xrange(8):
                 s += b &1
                 b >>= 1
-            print s&1, enc_parity[i], (1- p[i])
+          #  print s&1, enc_parity[i], (1- p[i])
             if s&1^enc_parity[i] == p[i]:
-                ok = False
-                #raise 1
-         #       return False
-        if not ok:
-            raise 1
+                 ok = False
 
-        return True
+        return ok
 
 
 class PacketProcessor:
