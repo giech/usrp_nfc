@@ -247,25 +247,32 @@ class CommandType:
     def get_decrypted_bytes(packet, state):
         c = state.get_cipher()
         bytes = packet.get_bytes()
-        cmd = state.get_cur_cmd()
-        if c: # and cmd != CommandType.AUTHA:
-            
+        prev_cmd = state.get_cur_cmd()
+        if c:
             ll = len(bytes)
-            if cmd == CommandType.RANDTA and ll == CommandType.RANDRB.total_len():
+            if prev_cmd == CommandType.AUTHA and ll == CommandType.RANDTA.total_len():
+                key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+                c = cipher.cipher(key)
+                print bytes
+                ret = c.set_tag(state.get_uid(), bytes)
+                state.set_cipher(c)
+                for i in ret:
+                    print format(i, "#04x")
+            elif prev_cmd == CommandType.RANDTA and ll == CommandType.RANDRB.total_len():
                 rdr_enc_nonce = bytes[0:ll/2]
-                rdr_nonce = c.recover_reader_nonce(rdr_enc_nonce)
+                rdr_nonce = c.enc_bytes_with_xor(rdr_enc_nonce, 1, 1)
                 enc_ar = bytes[ll/2:]
-                ar = c.recover_next_bytes(enc_ar)
-                if not c.check_ar(ar):
+                ar = c.enc_bytes_with_xor(enc_ar)
+                if ar != c.get_ar():
                     print 'ERROR WITH AR'
                 ret = rdr_nonce + ar
-            elif cmd == CommandType.RANDRB and ll == CommandType.RANDTB.total_len():
-                ret = c.recover_next_bytes(bytes)
-                if not c.check_at(ret):
+            elif prev_cmd == CommandType.RANDRB and ll == CommandType.RANDTB.total_len():
+                ret = c.enc_bytes_with_xor(bytes)
+                if ret != c.get_at():
                     print "ERROR WITH AT"
             else:
-                ret = c.recover_next_bytes(bytes)
-            
+                ret = c.enc_bytes_with_xor(bytes)      
+
             if not packet.check_parity(ret, c.get_last_parity_bits(ll)):
                 print 'PROBLEM WITH PARITY!!!'
             return ret
@@ -293,9 +300,12 @@ class CommandType:
                 uid = extra[0:4]
                 state.set_uid(uid)
             elif tp == CommandType.RANDTA:
+                print "GETTING RAND"
                 key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-                c = cipher.cipher(key, state.get_uid(), extra)
-                state.set_cipher(c)
+                c = cipher.cipher(key)
+                c.set_tag(state.get_uid(), extra)
+                if True or not state.get_cipher():
+                    state.set_cipher(c)
             elif tp == CommandType.REQA or tp == CommandType.HALT:
                 state.set_cipher(None)
                 
@@ -427,17 +437,20 @@ class Packet:
         if ll != len(p):
             print "HERE:", lep(p), ll, len(enc_parity)
             return False
+        ok = True
         for i in xrange(ll):
             s = 0
             b = bytes[i]
             for j in xrange(8):
                 s += b &1
                 b >>= 1
-         #   print s&1, enc_parity[i], p[i]
+            print s&1, enc_parity[i], (1- p[i])
             if s&1^enc_parity[i] == p[i]:
-                print "ERROR HERE"
-                raise 1
-                return False
+                ok = False
+                #raise 1
+         #       return False
+        if not ok:
+            raise 1
 
         return True
 

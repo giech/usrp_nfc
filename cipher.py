@@ -1,49 +1,53 @@
 #!/usr/bin/env python
 
 import lsfr
-
 class cipher:
+    def __init__(self, key):
+        self._bits = cipher._to_bit_ar(key)
 
-    def __init__(self, key, uid, tag_nonce, reader_nonce=None):
-        # 48, 32, 32 bits
+    def get_ar(self):
+        return self._ar[:]
 
-        bits = cipher._to_bit_ar(key)
-        self._bits = bits
+    def get_at(self):
+        return self._at[:]
 
+    def enc_bytes(self, bytes, xor=0, is_enc=0): # feedback, xor must be 0 or 1
+        bits = cipher._to_bit_ar(bytes)
+        ll = len(bits)
+        
+        or_bits = self._bits
 
-        tag_bits = cipher._to_bit_ar(tag_nonce)
-
-        ls = lsfr.lsfr(tag_bits, [16, 18, 19, 21])
-        ls.advance(64)
-        self._ar = ls.get_contents()
-        ls.advance(32)
-        self._at = ls.get_contents()
-        uid_bits = cipher._to_bit_ar(uid)
-
-
-        for i in xrange(32):
-            next_bit = cipher._L(bits[-48:]) ^ tag_bits[i] ^ uid_bits[i]
-            bits.append(next_bit)
-
-    def set_nonce(self, bytes):
-        bits = self._bits[0:80]
-        self._bits = bits
-        rdr_bits = cipher._to_bit_ar(bytes)
         k = []
-        for i in xrange(32):
-            cur_48 = bits[-48:]
-            cur_bit = rdr_bits[i]
-            next_bit = cipher._L(cur_48) ^ cur_bit
-            enc_bit = cipher._f(cur_48) ^ cur_bit
-            bits.append(next_bit)
-            k.append(enc_bit)
-
-
-        k.extend(self.encrypt_next_bits(self._ar))
-
-        k.extend(self.encrypt_next_bits(self._at))
+        for i in xrange(ll):
+            cur = or_bits[-48:]
+            f = cipher._f(cur)
+            b = bits[i]            
+            k.append(f)
+            next = cipher._L(cur) ^ (b&xor) ^ (f & is_enc)
+            or_bits.append(next)
 
         return cipher._to_byte_ar(k)
+
+    def set_tag(self, uid, nonce, is_enc=0):
+        ll = len(uid)
+        xor = [uid[i] ^ nonce[i] for i in xrange(ll)]
+        b = self.enc_bytes(xor, 1, is_enc)
+        ans = [nonce[i] ^ b[i] for i in xrange(ll)]
+
+        bits = cipher._to_bit_ar(nonce)
+        ls = lsfr.lsfr(bits, [16, 18, 19, 21])
+        ls.advance(64)
+        self._ar = cipher._to_byte_ar(ls.get_contents())
+        ls.advance(32)
+        self._at = cipher._to_byte_ar(ls.get_contents())
+        return ans
+    
+    def enc_bytes_with_xor(self, bytes, xor=0, is_enc=0):
+        a = self.enc_bytes(bytes, xor, is_enc)
+        ll = len(a)
+        for i in xrange(ll):
+            a[i] ^= bytes[i]
+        return a
 
             
     def encrypt_next_bits(self, bits):
@@ -82,11 +86,11 @@ class cipher:
                 cur |= bit << curi
                 curi += 1
             if curi == 8:
-     #           print format(cur, "#04x"), 
+       #         print format(cur, "#04x"), 
                 ret.append(cur)
                 curi = 0
                 cur = 0
-     #   print ''
+      #  print ''
         return ret
 
 
@@ -113,23 +117,6 @@ class cipher:
     
         return cipher._fc(a, b, c, d, e)
 
-    def recover_reader_nonce(self, bytes):
-        return self.recover_next_bytes(bytes, xor=True)
-
-    def recover_next_bytes(self, bytes, xor=False):
-        rdr_bits = cipher._to_bit_ar(bytes)
-        bit_ar = self._bits        
-        u = []
-        for bit in rdr_bits:
-            cur_ar = bit_ar[-48:]
-            c = cipher._f(cur_ar)
-            unenc = bit ^ c
-            u.append(unenc)
-            l = cipher._L(cur_ar)
-            bit_ar.append(l ^ unenc if xor else l)
-
-        return cipher._to_byte_ar(u)
-
     def get_last_parity_bits(self, num=4):
         bits = []
         ll = len(self._bits)
@@ -138,35 +125,117 @@ class cipher:
             bits.append(r)
         return bits
 
-    def check_at(self, at):
-        return at == cipher._to_byte_ar(self._at)
-
-    def check_ar(self, ar):
-        return ar == cipher._to_byte_ar(self._ar)
 
     def _b(self, i):
         s = cipher._f(self._bits[i: i+48])
         return s
 
-    def get_ar(self):
-        bs = [self._b(i) for i in xrange(64, 96)]
+if __name__ == '__main2__':
+    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    uid = [0x9c, 0x59, 0x9b, 0x32]
+    tag_nonce = [0x82, 0xa4, 0x16, 0x6c]
+    reader_enc_nonce = [0xa1, 0xe4, 0x58, 0xce]
+    cp = cipher(key, uid, tag_nonce)
+
+
+    cp.recover_reader_nonce(reader_enc_nonce)
+    cp.recover_next_bytes([0x6e, 0xea, 0x41, 0xe0])
+    cp.recover_next_bytes([0x5c, 0xad, 0xf4, 0x39])
+    cp.recover_next_bytes([0x8e, 0x0e, 0x5d, 0xb9]) # this is another auth request: ['0x60', '0x00', '0xf5', '0x7b']
+    n2 = cp.recover_next_bytes([0x5a, 0x92, 0x0d, 0x85])
+    a = cp.recover_next_bytes([0x98, 0xd7, 0x6b, 0x77, 0xd6, 0xc6, 0xe8, 0x70])
+    cp2 = cipher(key, uid,n2)
+    cp2.recover_reader_nonce(a[0:4]) 
+    cp2.recover_next_bytes(a[4:])
+
+
+def p(bytes):
+    for b in bytes:
+        print format(b, "#04x")
+    print ''
+
+if __name__ == '__main2__':
+    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    uid = [0x9c, 0x59, 0x9b, 0x32]
+    tag_nonce = [0x82, 0xa4, 0x16, 0x6c]
+    reader_enc_nonce = [0xa1, 0xe4, 0x58, 0xce, 0x6e, 0xea, 0x41, 0xe0] #EF EA 1C DA 8D 65 73 4B 
+    enc_at = [0x5c, 0xad, 0xf4, 0x39] # 9A 42 7B 20 
+    enc_auth = [0x8e, 0x0e, 0x5d, 0xb9] # 60 00 F5 7B 
+    enc_tag = [0x5a, 0x92, 0x0d, 0x85] #  A5 5D 95 0B 
+    enc_rr = [0x98, 0xd7, 0x6b, 0x77, 0xd6, 0xc6, 0xe8, 0x70] # EF 60 E2 6F 14 91 FB DB 
+    enc_rrrr = [0xca, 0x7e, 0x0b, 0x63] # A5 38 5D 38 
+
+    cp = cipher(key)    
+    cp.set_tag(uid, tag_nonce)
+
+    b = cp.enc_bytes_with_xor(reader_enc_nonce[0:4], 1, 1)
+    p(b)
+    b = cp.enc_bytes_with_xor(reader_enc_nonce[4:])
+    p(b)
+    b = cp.enc_bytes_with_xor(enc_at)
+    p(b)
+    b = cp.enc_bytes_with_xor(enc_auth)
+    p(b)
+
+    cp2 = cipher(key)
+    new_nonce = cp2.set_tag(uid, enc_tag, 1)
+    print "NEW NONCE"
+    p(new_nonce)
+
+
+
+    cp2 = cipher(key)
+    b = cp2.set_tag(uid, new_nonce)
+    print "NONCE ENC"
+    p(b)
+
+    b = cp2.enc_bytes_with_xor(enc_rr[0:4], 1, 1)
+    p(b)
+
+   # b = cp2.enc_bytes_with_xor([0xef, 0x60, 0xe2, 0x6f])
+   # p(b)
+    #p(cp2.get_ar())
+
 
 if __name__ == '__main__':
-    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]#[0x62, 0xBE, 0xA1, 0x92, 0xFA, 0x37]#[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-    uid = [0xCD, 0x76, 0x92, 0x74]#[0xc1, 0x08, 0x41, 0x6a]#[0xCD, 0x76, 0x92, 0x74]
-    tag_nonce = [0x0E, 0x61, 0x64, 0xD6]#[0xab, 0xcd, 0x19, 0x49]#[0x0E, 0x61, 0x64, 0xD6]
-    reader_enc_nonce = [0x78, 0x5A, 0x41, 0x80]#[0x59, 0xd5, 0x92, 0x0f]#[0x78, 0x5A, 0x41, 0x80]
-    reader_nonce = [0x15, 0x45, 0x90, 0xa8]#[0x16, 0x05, 0x49, 0x0d] #[0x15, 0x45, 0x90, 0xa8]
-    cp = cipher(key, uid, tag_nonce)
-    cp.set_nonce(reader_nonce)
-    cp.recover_next_bytes([0x69, 0xAC, 0x4F, 0x02])
-    cp.recover_next_bytes([0xBC, 0x2F, 0xBD, 0xB1, 0x75, 0x44, 0x3C, 0xD7, 0xD2, 0x28, 0x3B, 0xA5, 0x08, 0x04, 0x88, 0x18, 0x89, 0x42])
-    
-    #cp.recover_reader_nonce(reader_enc_nonce)
-   # cp.recover_next_bytes([0x15, 0xb9, 0xd5, 0x53, 0xa7, 0x9a, 0x3f, 0xee])
+    key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    uid = [0x15, 0x4d, 0xe5, 0x21]
+    tag_nonce = [0x08,  0x23, 0xb3, 0x16]
+    reader_enc_nonce = [0xcd,  0x8c,  0x18,  0xd7,  0x74,  0x86,  0xeb,  0x32] # 00 00 00 00 72 3a 73 0a
+    enc_at = [0x69, 0x05,  0xed,  0x49  ] # f2 59 7f 9e
+    enc_auth = [0x0e,  0xb9,  0xbb,  0xd4 ] # 60  03  6e  49
+    enc_tag = [0x4e,  0xd9,  0xce,  0xa2] #   b1  0e  be  bc
+    enc_rr = [0x7f,  0x16,  0x9a,  0x25,  0x50,  0xae,  0x0d,  0xe7 ] # 68  f0  cd  33  2e  bd  74  dc
+
+    cp = cipher(key)    
+    cp.set_tag(uid, tag_nonce)
+
+    b = cp.enc_bytes_with_xor(reader_enc_nonce[0:4], 1, 1)
+    p(b)
+    b = cp.enc_bytes_with_xor(reader_enc_nonce[4:])
+    p(b)
+    b = cp.enc_bytes_with_xor(enc_at)
+    p(b)
+    b = cp.enc_bytes_with_xor(enc_auth)
+    p(b)
+
+    cp2 = cipher(key)
+    new_nonce = cp2.set_tag(uid, enc_tag, 1)
+    print "NEW NONCE"
+    p(new_nonce)
 
 
-#EXTRA: 0X78 0X5A 0X41 0X80 0X50 0X04 0X8F 0X22 
 
-#EXTRA: 0XCE 0XCA 0X0D 0X83 
+    cp2 = cipher(key)
+    b = cp2.set_tag(uid, new_nonce)
+    print "NONCE ENC"
+    p(b)
 
+    print "AR"
+    p(cp2.get_ar())# 94 40 a7 42 WTF
+
+    b = cp2.enc_bytes_with_xor(enc_rr[0:4])
+    p(b)
+
+   # b = cp2.enc_bytes_with_xor([0xef, 0x60, 0xe2, 0x6f])
+   # p(b)
