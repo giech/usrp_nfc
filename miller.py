@@ -213,7 +213,7 @@ class miller_encoder:
                     cur_bits[:] = miller_encoder.ZERO0
                 else:
                     cur_bits[:] = miller_encoder.ZERO1
-
+            last_bit = bit
             start_pulse, start_dur = cur_bits[0]
             if start_pulse == last_pulse:
                 cur_dur = start_dur + last_dur

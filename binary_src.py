@@ -5,10 +5,16 @@ from utilities import PulseLength
 from gnuradio import gr
 
 from manchester import manchester_encoder
+from miller import miller_encoder
+
+class encoder:
+    @staticmethod
+    def encode_bits(bits):
+        return [(bit, PulseLength.FULL) for bit in bits]
 
 class binary_src(gr.sync_block):
     "Binary source" 
-    def __init__(self, samp_rate, bits):
+    def __init__(self, samp_rate, encode="same", idle_bit=0): #delay in us, delay=(1,27000)
         gr.sync_block.__init__(
             self,
             name = "binary_src",
@@ -16,10 +22,21 @@ class binary_src(gr.sync_block):
             out_sig = [numpy.complex64], # Output signature: 1 float at a time
         )
 
-        
-        self._bits = manchester_encoder.encode_bits(bits)
-        self._index = 0
+        if encode == "manchester":
+            self._encoder = manchester_encoder
+        elif encode == "miller":
+            self._encoder = miller_encoder
+        else:
+            self._encoder = encoder
+
         self._mult = samp_rate/1e6
+        self._index = 0
+        self._bits = []
+        self._idle = idle_bit
+
+    def set_bits(self, bits):
+        self._bits.extend(self._encoder.encode_bits(bits))
+        
 
     def work(self, input_items, output_items):
         
@@ -29,21 +46,28 @@ class binary_src(gr.sync_block):
        
         index = self._index
         bits = self._bits
-        ll = len(bits)
         mult = self._mult
         ar_ind = 0
 
-        while True:
-            bit, dur = bits[index]
-            dur = int(dur*mult)        
-            end = ar_ind + dur
-            if end > oi_len:
-                break
-            oi[ar_ind:end] = [bit]*dur
-            ar_ind = end
-            index = (index + 1)%ll
+        
+        while ar_ind < oi_len:
+            ll = len(bits) # may change
+            if ll and index < ll:
+                bit, dur = bits[index]
+                dur = int(dur*mult)
+                end = ar_ind + dur
+                if end > oi_len:
+                    break
+                oi[ar_ind:end] = [bit]*dur
+                ar_ind = end
+                index = index + 1
+            else:
+                index = 0
+                self._bits = []
+                rem = oi_len - ar_ind
+                oi[ar_ind:] = [self._idle]*rem
+                ar_ind = oi_len
 
         self._index = index
-
 
         return ar_ind

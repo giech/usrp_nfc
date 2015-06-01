@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import lsfr
+import lfsr
 class cipher:
     def __init__(self, key):
         self._bits = cipher._to_bit_ar(key)
@@ -35,7 +35,7 @@ class cipher:
         ans = [nonce[i] ^ b[i] for i in xrange(ll)]
 
         bits = cipher._to_bit_ar(ans if is_enc else nonce)
-        ls = lsfr.lsfr(bits, [16, 18, 19, 21])
+        ls = lfsr.lfsr(bits, [16, 18, 19, 21])
         ls.advance(64)
         self._ar = cipher._to_byte_ar(ls.get_contents())
         ls.advance(32)
