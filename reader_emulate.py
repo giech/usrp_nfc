@@ -6,17 +6,28 @@ from gnuradio import gr
 from gnuradio.eng_option import eng_option
 from optparse import OptionParser
 
+import usrp_src
 from binary_src import binary_src
 
 
 class reader_emulate(gr.top_block):
-    def __init__(self, samp_rate=20000000):
+    def __init__(self, src="uhd", samp_rate=2e6):
         super(reader_emulate, self).__init__()
 
+        if src == "uhd":
+            self._src = usrp_src.usrp_src()
+            hi_val = 1.05
+        else:
+            self._src = blocks.wavfile_source(src, False)
+            hi_val = 1.05 # 1.1
 
-        self.samp_rate = samp_rate
-        self.freq = freq = 13560000
-        self.A = A = 0.70
+        self._back = background.background(True, False, callback)    
+        self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
+        self._connect(self._src, self._trans)
+
+
+        freq = 13560000
+        A = 0.70
 
         self.binary_src = binary_src(samp_rate, encode="miller", idle_bit=1)
         self.binary_src.set_bits([0,0,1,1,0,0,1,0,0])
@@ -24,20 +35,12 @@ class reader_emulate(gr.top_block):
         self.carrier = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, freq, A, 0)
        
 
-        self.c2m = blocks.complex_to_mag_squared(1) #complex_to_mag_squared
+        self.c2r = blocks.complex_to_real(1) #complex_to_mag_squared
 
-        self.sink = blocks.wavfile_sink("/home/ilias/Desktop/test.wav", 1, samp_rate, 8)
-        
-        ##################################################
-        # Connections
-        ##################################################
+        self.sink = blocks.wavfile_sink("/home/ilias/Desktop/test.wav", 1, int(samp_rate), 8)
         self.connect((self.carrier, 0), (self.mult, 0))
         self.connect((self.binary_src, 0), (self.mult, 1))
-        self.connect(self.mult, self.c2m, self.sink)
-        
-        self.c2r = blocks.complex_to_real(1)
-        self.sink2 = blocks.wavfile_sink("/home/ilias/Desktop/test2.wav", 1, samp_rate, 8)
-        self.connect(self.mult, self.c2r, self.sink2)
+        self.connect(self.mult, self.c2r, self.sink)
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")

@@ -9,6 +9,7 @@ import usrp_src
 import transition_sink
 import background
 
+# TODO: write output to wav file, option processing
 
 class nfc_eavesdrop(gr.top_block):
     def __init__(self, src="uhd", decode="all", samp_rate=2e6):
@@ -34,7 +35,7 @@ class nfc_eavesdrop(gr.top_block):
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    src =  "/home/ilias/Desktop/recs/1k.wav"    
+    src =  "/home/ilias/Desktop/recs/ultralight.wav"    
     decode = "all" #"tag"
     gr.enable_realtime_scheduling()
     tb = nfc_eavesdrop(src=src, decode=decode)
