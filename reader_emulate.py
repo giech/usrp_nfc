@@ -30,7 +30,7 @@ class reader_emulate(gr.top_block):
         self._bin_src = binary_src(samp_rate, encode="miller", idle_bit=1)
         
         self._reader = Reader(self._bin_src.set_bits)
-        self._back = background.background(True, True, self._reader.process_packet)    
+        self._back = background.background(False, True, self._reader)    
         self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
         self._connect(self._src, self._trans)
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     gr.enable_realtime_scheduling()
 
-    src =  "/home/ilias/Desktop/recs/ultralight.wav"
+    src =  "/home/ilias/Desktop/recs/1k.wav"
     dst = ""
     tb = reader_emulate(src)
     tb.run()

@@ -10,9 +10,9 @@ from manchester import manchester_decoder
 from miller import miller_decoder
 
 class background:
-    def __init__(self, reader=False, tag=False, callback=None):
+    def __init__(self, reader=False, tag=False, emulator=None):
         self._deque = collections.deque()
-        cpp   = CombinedPacketProcessor(callback)
+        cpp   = CombinedPacketProcessor(emulator)
         self._reader = miller_decoder(cpp) if reader else None
         self._tag    = manchester_decoder(cpp) if tag else None 
 

@@ -16,7 +16,7 @@ class fsm:
         self._encryption = None
         self._readaddr = 0
 
-    def _display(self, cmd, struct, packet_type):
+    def _display(self, cmd, struct):
         struct.display()
 
     def _check_parity(self, bits):
@@ -59,6 +59,27 @@ class fsm:
             print "MANY MORE ERROR"
             return bits[0:ll-rem]
 
+    def process_outgoing(self, bits, cmd):
+        packet_type = cmd.packet_type()
+        tag = self._tag_type
+        if tag == TagType.ULTRALIGHT:
+            self.process_bits(bits, packet_type) # update state
+        elif tag == TagType.CLASSIC1K:
+            self._cur_cmd = cmd
+            c = self._encryption
+            if c:
+                enc_bits = []
+                if cmd == CommandType.RANDRB:                  
+                    ll = len(bits)/2
+                    enc_bits.extend(c.enc_bits(bits[0:ll], 1))
+                    enc_bits.extend(c.enc_bits(bits[ll:]))
+                else:
+                    enc_bits.extend(c.enc_bits(bits))
+                bits = enc_bits
+        else:
+            print "TAG TYPE NOT CURRENTLY SUPPORTED", tag
+        return bits
+
     def _decrypt_bits(self, bits):
         c = self._encryption        
         if c:
@@ -83,12 +104,6 @@ class fsm:
         self._keyb = key_b
         self._cur_key = key_a
 
-    def encrypt_bits(self, bits):
-        c = self._encryption
-        if c:
-            return c.enc_bits(bits)
-        else:
-            return bits
 
     def process_command(self, cmd_tp, cmd_str):
         if cmd_tp in [CommandType.REQA, CommandType.WUPA, CommandType.HALT]:
@@ -113,6 +128,7 @@ class fsm:
             uid = cmd_str.extra()[start:4]
             if uid != self._uid:
                 print "MISMATCH BETWEEN READER-TAG UID", uid, self._uid
+                self._uid = uid
         elif cmd_tp == CommandType.ANTI2T:
             uid = cmd_str.extra()[0:4]
             self._uid.extend(uid)
@@ -120,6 +136,7 @@ class fsm:
             uid = cmd_str.extra()[0:4]
             if uid != self._uid[-4:]:
                 print "MISMATCH BETWEEN READER_TAG UID#2", uid, self._uid
+                self._uid.extend(uid)
         elif cmd_tp == CommandType.AUTHA:
             self._cur_key = self._keya
         elif cmd_tp == CommandType.AUTHB:
@@ -160,4 +177,4 @@ class fsm:
 
         c = CommandStructure.decode_command(cmd, bytes)
         self.process_command(cmd, c)
-        self._callback(cmd, c, packet_type)
+        self._callback(cmd, c)

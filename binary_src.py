@@ -14,7 +14,7 @@ class encoder:
 
 class binary_src(gr.sync_block):
     "Binary source" 
-    def __init__(self, samp_rate, encode="same", idle_bit=0): #delay in us, delay=(1,27000)
+    def __init__(self, samp_rate, encode="same", idle_bit=0, repeat=None): #delay in us, delay=(1,27000)
         gr.sync_block.__init__(
             self,
             name = "binary_src",
@@ -33,9 +33,11 @@ class binary_src(gr.sync_block):
         self._index = 0
         self._bits = []
         self._idle = idle_bit
+        self._repeat = repeat
+        self._repeat_ind = 0
 
     def set_bits(self, bits):
-        self._bits.extend(self._encoder.encode_bits(bits))
+        self._bits.extend(self._encoder.encode_bits(bits) + [(2, 0)])
         
 
     def work(self, input_items, output_items):
@@ -54,6 +56,9 @@ class binary_src(gr.sync_block):
             ll = len(bits) # may change
             if ll and index < ll:
                 bit, dur = bits[index]
+                if bit == 2: # indicates pause
+                    index = index + 1
+                    break
                 dur = int(dur*mult)
                 end = ar_ind + dur
                 if end > oi_len:

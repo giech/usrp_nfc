@@ -77,11 +77,15 @@ class PacketProcessor:
 
 
 class CombinedPacketProcessor:
-    def __init__(self, callback=None):
+    def __init__(self, emulator=None):
         self._packet_processors = []
         for i in range(PacketType.NUM_TYPES):
             self._packet_processors.append(PacketProcessor(i))
-        self._fsm = fsm.fsm(callback)
+        if emulator:        
+            self._fsm = fsm.fsm(emulator.process_packet)
+            emulator.set_encoder(self._fsm.process_outgoing)
+        else:
+            self._fsm = fsm.fsm()
         
     def append_bit(self, bit, packet_type):
         pp = self._packet_processors[packet_type]     
