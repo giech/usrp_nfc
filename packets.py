@@ -81,18 +81,13 @@ class CombinedPacketProcessor:
         self._packet_processors = []
         for i in range(PacketType.NUM_TYPES):
             self._packet_processors.append(PacketProcessor(i))
-        self._callback = callback if callback else self._display
-        self._fsm = fsm.fsm()
-
-    def _display(self, packet_type, cmd):
-        cmd.display()
+        self._fsm = fsm.fsm(callback)
         
     def append_bit(self, bit, packet_type):
         pp = self._packet_processors[packet_type]     
         ret = pp.append_bit(bit)
         if ret:
             self._fsm.process_bits(ret, packet_type)
-            #self._callback(packet_type, ret)
 
 
     

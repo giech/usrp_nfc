@@ -26,7 +26,6 @@ class nfc_eavesdrop(gr.top_block):
         reader = decode == "all" or decode == "reader"
         tag = decode == "all" or decode == "tag"
 
-
         self._back = background.background(reader, tag)    
         self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
         self._connect(self._src, self._trans)

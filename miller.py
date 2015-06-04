@@ -200,12 +200,16 @@ class miller_encoder:
 
     @staticmethod
     def encode_bits(bits):
+        bits_cpy = []
+        bits_cpy[:] = bits
+        bits_cpy.append(0) # signifies end        
+
         durs = []
         cur_bits = []
-        durs.extend(miller_encoder.ZERO0)
+        durs.extend(miller_encoder.ZERO0) # signifies start
         last_bit = 0        
 
-        for bit in bits[1:]:
+        for bit in bits_cpy:
             last_pulse, last_dur = durs[-1]
             cur_bits[:] = miller_encoder.ONE
             if bit == 0:
@@ -221,8 +225,21 @@ class miller_encoder:
                 durs.extend(cur_bits[1:])
             else:
                 durs.extend(cur_bits)
-            
-                
+
+        s ='''
+        count = 0
+        for b in durs:
+            bit, dur = b
+            if bit == 0:
+                count += 1
+            else:
+                if dur < 7:
+                    print "SHORT"
+                elif dur < 12:
+                    print "MED"
+                else:
+                    print "LONG"
+        print "ZERO COUNT", count'''
         return durs
 
 

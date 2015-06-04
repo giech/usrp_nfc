@@ -63,7 +63,7 @@ class manchester_encoder:
     def encode_bits(bits):
         durs = [(1, u.PulseLength.HALF), (0, u.PulseLength.HALF)]
         last = 0
-        for bit in bits[1:]:
+        for bit in bits:
             if bit == last:
                 durs[-1] = (bit, u.PulseLength.FULL)
                 last = 1 - last

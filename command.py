@@ -232,6 +232,8 @@ class CommandStructure:
             print ''
         print '\n'
 
+    def all_bytes(self):
+        return self._header + self._extra + self._crc
 
     @staticmethod
     def decode_command(cmd, bytes):
@@ -243,3 +245,18 @@ class CommandStructure:
             return CommandStructure(name, header, extra, crc)
         else:
             return CommandStructure("UNKNOWN", [], bytes)
+
+    @staticmethod
+    def encode_command(cmd, bytes):
+        if cmd:
+            header = cmd.header()
+            if cmd.needs_crc():
+                crc = utilities.CRC.calculate_crc(header + bytes)
+            else:
+                crc = []
+            return CommandStructure(cmd.name(), header, bytes, crc)
+        else:
+            return CommandStructure("UNKNOWN", [], bytes)
+
+
+    

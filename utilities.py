@@ -42,16 +42,34 @@ class CRC:
         crc = CRC.calculate_crc(data[:-2], cktp)
         return crc[0] == data[-2] and crc[1] == data[-1]
 
-class BCC:
+
+class Convert:
+    @staticmethod
+    def to_bit_ar(bytes, parity=False):
+        ret = []
+        set_bits = 0 
+        for b in bytes:
+            for i in xrange(8):
+                bit = (b >> i) & 1
+                set_bits += bit
+                ret.append(bit)
+            if parity:
+                ret.append(1-(set_bits & 1))
+                set_bits = 0
+        return ret
 
     @staticmethod
-    def calculate_bcc(serial): # length should be 7
-        bcc0 = 0x88
-        bcc1 = 0
-        for byte in serial[:3]:
-            bcc0 ^= byte
+    def to_byte_ar(bits):
+        ret = []
+        cur = 0
+        curi = 0
+        for bit in bits:
+            if curi < 8:
+                cur |= bit << curi
+                curi += 1
+            if curi == 8:
+                ret.append(cur)
+                curi = 0
+                cur = 0
+        return ret
 
-        for byte in serial[3:]:
-            bcc1 ^= byte
-
-        return [bcc0, bcc1]

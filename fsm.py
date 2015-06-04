@@ -1,12 +1,14 @@
 from command import CommandType, CommandStructure, TagType, PacketType
 from cipher import cipher
+from utilities import Convert
 
 class fsm:
     
-    def __init__(self):
+    def __init__(self, callback=None):
         self._cur_cmd = CommandType.REQA
         self._reset_tag()
         self.set_keys()
+        self._callback = callback if callback else self._display
 
     def _reset_tag(self):
         self._uid = []
@@ -14,6 +16,8 @@ class fsm:
         self._encryption = None
         self._readaddr = 0
 
+    def _display(self, cmd, struct, packet_type):
+        struct.display()
 
     def _check_parity(self, bits):
         bytes = []
@@ -68,7 +72,7 @@ class fsm:
             elif self._cur_cmd in [CommandType.AUTHA, CommandType.AUTHB]:
                 c = cipher(self._cur_key)
                 self._encryption = c
-                start_bits = c.set_tag_bits(cipher.to_bit_ar(self._uid), bits, 1)
+                start_bits = c.set_tag_bits(Convert.to_bit_ar(self._uid), bits, 1)
                 rem_bits = []
             bits = start_bits + c.enc_bits(rem_bits)
         return bits
@@ -123,8 +127,8 @@ class fsm:
         elif cmd_tp == CommandType.RANDTA:
             if not self._encryption:
                 self._encryption = cipher(self._cur_key)
-                uid_bits = cipher.to_bit_ar(self._uid)
-                nonce_bits = cipher.to_bit_ar(cmd_str.extra())
+                uid_bits = Convert.to_bit_ar(self._uid)
+                nonce_bits = Convert.to_bit_ar(cmd_str.extra())
                 self._encryption.set_tag_bits(uid_bits, nonce_bits, 0)
         elif cmd_tp == CommandType.RANDRB:
             ar = cmd_str.extra()[4:]
@@ -156,4 +160,4 @@ class fsm:
 
         c = CommandStructure.decode_command(cmd, bytes)
         self.process_command(cmd, c)
-        c.display()
+        self._callback(cmd, c, packet_type)

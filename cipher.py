@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import lfsr
+from utilities import Convert
 class cipher:
     def __init__(self, key):
-        self._bits = cipher.to_bit_ar(key)
+        self._bits = Convert.to_bit_ar(key)
 
     def get_ar(self):
         return self._ar[:]
@@ -30,9 +31,9 @@ class cipher:
     def _set_lfsr(self, bits):
         ls = lfsr.lfsr(bits, [16, 18, 19, 21])
         ls.advance(64)
-        self._ar = cipher._to_byte_ar(ls.get_contents())
+        self._ar = Convert.to_byte_ar(ls.get_contents())
         ls.advance(32)
-        self._at = cipher._to_byte_ar(ls.get_contents())
+        self._at = Convert.to_byte_ar(ls.get_contents())
 
     @staticmethod
     def _remove_parity(bits):
@@ -68,14 +69,6 @@ class cipher:
     @staticmethod
     def _L(k):
         return k[0] ^ k[5] ^ k[9] ^ k[10] ^ k[12] ^ k[14] ^ k[15] ^ k[17] ^ k[19] ^ k[24] ^ k[25] ^ k[27] ^ k[29] ^ k[35] ^ k[39] ^ k[41] ^ k[42] ^ k[43]
-
-    @staticmethod
-    def to_bit_ar(k):
-        ret = []
-        for b in k:
-            for i in xrange(8):#xrange(7, -1, -1):
-                ret.append((b >> i) & 1)
-        return ret
 
     @staticmethod
     def _to_byte_ar(k):
