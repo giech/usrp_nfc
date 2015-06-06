@@ -54,7 +54,7 @@ class Reader:
         if self._encode:
             all_bits = self._encode(all_bits, cmd)   
         #print all_bits
-        self._callback(all_bits)
+        self._callback(all_bits, cmd == CommandType.HALT)
 
     def set_encoder(self, encode):
         self._encode = encode

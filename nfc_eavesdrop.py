@@ -34,11 +34,11 @@ class nfc_eavesdrop(gr.top_block):
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    src =  "/home/ilias/Desktop/recs/1k.wav"    
+    src =  "/home/ilias/Desktop/test.wav"#test.wav"#recs/1k.wav"    
     decode = "all" #"tag"
     gr.enable_realtime_scheduling()
     tb = nfc_eavesdrop(src=src, decode=decode)
     tb.run()
     print "PROCESSING FINISHED"
     import time
-    time.sleep(2)
+    time.sleep(1)

@@ -7,6 +7,8 @@ from gnuradio import gr
 from manchester import manchester_encoder
 from miller import miller_encoder
 
+# This actually has horrible race conditions, but it works for now
+
 class encoder:
     @staticmethod
     def encode_bits(bits):
@@ -14,7 +16,7 @@ class encoder:
 
 class binary_src(gr.sync_block):
     "Binary source" 
-    def __init__(self, samp_rate, encode="same", idle_bit=0, repeat=None): #delay in us, delay=(1,27000)
+    def __init__(self, samp_rate, encode="same", idle_bit=0, repeat=[], pause_dur=25000):
         gr.sync_block.__init__(
             self,
             name = "binary_src",
@@ -34,11 +36,26 @@ class binary_src(gr.sync_block):
         self._bits = []
         self._idle = idle_bit
         self._repeat = repeat
-        self._repeat_ind = 0
+        self._has_finished = True
+        self._pause_dur = pause_dur
 
-    def set_bits(self, bits):
-        self._bits.extend(self._encoder.encode_bits(bits) + [(2, 0)])
-        
+    def _encode_pause(self, pause, has_finished):
+        if has_finished:
+            pause = self._pause_dur
+        if pause == 0:
+            return [(2, 0)]
+        div = 1000        
+        d = pause/div
+        a = [(self._idle, div)]*d
+        r = pause %div
+        if r:
+            a += [(self._idle, r)]
+        return a 
+
+    def set_bits(self, bits, has_finished=False, pause=0):
+        encoded = self._encode_pause(pause/2, has_finished)
+        self._bits.extend(encoded + self._encoder.encode_bits(bits) + encoded)
+        self._has_finished = has_finished
 
     def work(self, input_items, output_items):
         
@@ -56,7 +73,7 @@ class binary_src(gr.sync_block):
             ll = len(bits) # may change
             if ll and index < ll:
                 bit, dur = bits[index]
-                if bit == 2: # indicates pause
+                if bit == 2: # indicates temp pause
                     index = index + 1
                     break
                 dur = int(dur*mult)
@@ -67,6 +84,10 @@ class binary_src(gr.sync_block):
                 ar_ind = end
                 index = index + 1
             else:
+                if self._has_finished and self._repeat:
+                   self.set_bits(self._repeat, True, self._pause_dur)
+                   continue
+
                 index = 0
                 self._bits = []
                 rem = oi_len - ar_ind

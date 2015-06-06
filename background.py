@@ -27,6 +27,7 @@ class background:
         if t == PacketType.TAG_TO_READER and self._tag:
             self._tag.process_transition(transitions)
         elif t == PacketType.READER_TO_TAG and self._reader:
+            #print "CALLING", transitions, t
             self._reader.process_transition(transitions)
 
     def run(self):

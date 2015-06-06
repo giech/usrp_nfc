@@ -29,6 +29,7 @@ class transition_sink(gr.sync_block):
         self._hi_val = hi_val
         self._callback = callback
 
+
     def work_stable(self, input_items, output_items):
         
         ii0 = input_items[0].tolist()
@@ -50,9 +51,8 @@ class transition_sink(gr.sync_block):
         for bit in ii0:
             prev = ar[index]
             prev_state = cur_state
-            ratio = bit*length/ss
 
-        #    print bit*100, ss/length*100
+            ratio = bit*length/ss
 
             if lo > ratio:
                 val = -1
@@ -77,7 +77,6 @@ class transition_sink(gr.sync_block):
                 d = mx if prev_state == 0 else dur
                 v = last_bit + 1 if cur_state == 2 else last_bit
                 x = ((v, d*factor), cur_state - 1)
-               # print x
                 callbacks.append(x)
                 dur = 1
                 last_bit = val
@@ -89,7 +88,7 @@ class transition_sink(gr.sync_block):
                 dur = 1
                 cur_state = 0
 
-        self._callback(callbacks)
+        self._callback(callbacks)        
         self._index = index
         self._current_state = cur_state
         self._sum = ss
