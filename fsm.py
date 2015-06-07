@@ -76,8 +76,17 @@ class fsm:
                 else:
                     enc_bits.extend(c.enc_bits(bits))
                 bits = enc_bits
+        elif cmd == CommandType.ATQAUL:
+            self._tag_type = TagType.ULTRALIGHT
+        elif cmd == CommandType.ATQA1K:
+            self._tag_type = TagType.CLASSIC1K
+        elif cmd == CommandType.ATQA4K:
+            self._tag_type = TagType.CLASSIC4K
+        elif cmd == CommandType.ATQADS:
+            self._tag_type = TagType.DESFIRE
         else:
-            print "TAG TYPE NOT CURRENTLY SUPPORTED", tag
+            pass            
+            #print "TAG TYPE NOT CURRENTLY SUPPORTED", tag
         return bits
 
     def _decrypt_bits(self, bits):
@@ -108,7 +117,6 @@ class fsm:
     def process_command(self, cmd_tp, cmd_str):
         if cmd_tp in [CommandType.REQA, CommandType.WUPA, CommandType.HALT]:
             self._reset_tag()
-            self._encryption = None
         elif cmd_tp == CommandType.ATQAUL:
             self._tag_type = TagType.ULTRALIGHT
         elif cmd_tp == CommandType.ATQA1K:

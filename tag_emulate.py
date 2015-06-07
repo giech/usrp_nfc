@@ -6,49 +6,72 @@ from gnuradio import gr
 from gnuradio.eng_option import eng_option
 from optparse import OptionParser
 
+from gnuradio import uhd
+
+import usrp_src
 from binary_src import binary_src
 
+import background
+import transition_sink
+import load_modulator
+from tag import Tag
+
+# ~ 30-40mV, ~ 18mA for amplitude of 1
+        
 
 class tag_emulate(gr.top_block):
-    def __init__(self, samp_rate=2e6):
+    def __init__(self, src="uhd", dst="uhd", samp_rate=2e6):
         super(tag_emulate, self).__init__()
 
-        self.sub_freq = sub_freq = 847500
-        self.samp_rate = samp_rate = 2000000
-        self.freq = freq = 13560000
-        self.M = M = 0.3
-        self.A = A = 0.7
+        if src == "uhd":
+            self._src = usrp_src.usrp_src()
+            hi_val = 1.05
+        else:
+            self._src = blocks.wavfile_source(src, False)
+            hi_val = 1.05 # 1.1
 
-        self.binary_src = binary_src(samp_rate, encode="manchester", idle_bit=0)
-        self.binary_src.set_bits([1,0,0,1,0,0,0,0,1])
-        self.mult = blocks.multiply_vcc(1)
-        self.add = blocks.add_vcc(1) # add or multiply?
-        self.carrier = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, freq, A, 0)
+        self._bin_src = binary_src(samp_rate, encode="manchester", idle_bit=0)
         
-        self.subcarrier = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, sub_freq, M, 0) # analog.GR_SQR_WAVE?
+        self._tag = Tag(self._bin_src.set_bits)
+        self._back = background.background(True, False, self._tag)    
+        self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
+        self._connect(self._src, self._trans)
 
-        self.c2m = blocks.complex_to_mag_squared(1) #complex_to_mag_squared
 
-        self.sink = blocks.wavfile_sink("/home/ilias/Desktop/test.wav", 1, samp_rate, 8)
-        
-        ##################################################
-        # Connections
-        ##################################################
-        self.connect((self.carrier, 0), (self.add, 0))
-        
-        self.connect((self.subcarrier, 0), (self.mult, 0))
-        self.connect((self.binary_src, 0), (self.mult, 1))
-        self.connect(self.mult, (self.add, 1))
-        self.connect(self.add, self.c2m, self.sink)
-        
-        self.c2r = blocks.complex_to_real(1)
-        self.sink2 = blocks.wavfile_sink("/home/ilias/Desktop/test2.wav", 1, samp_rate, 8)
-        self.connect(self.add, self.c2r, self.sink2)
+        freq = 13560000
+        A = 1
+
+        self._mult = blocks.multiply_vcc(1)
+        self._carrier = analog.sig_source_c(samp_rate, analog.GR_CONST_WAVE, freq, A, 0)
+        self._lm = load_modulator.load_modulator(self._carrier)
+
+        self.connect(self._bin_src, self._lm)
+   #     self.connect((self._carrier, 0), (self._mult, 0))
+   #     self.connect((self._lm, 0), (self._mult, 1))       
+
+        if dst == "uhd":
+            self._sink = uhd.usrp_sink(
+                device_addr="",
+                stream_args=uhd.stream_args(
+                    cpu_format="fc32",
+                    channels=range(1),
+                ),
+            )
+            self._sink.set_samp_rate(samp_rate)
+            #self._sink.set_center_freq(freq)
+            self.connect(self._carrier, self._sink)
+        else:
+            self._c2 = blocks.complex_to_mag_squared(1) #complex_to_mag_squared #complex_to_real
+            self._sink = blocks.wavfile_sink(dst, 1, int(samp_rate))
+            self.connect(self._bin_src, self._c2, self._sink)
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
     gr.enable_realtime_scheduling()
-    tb = tag_emulate()
+
+    src =  "/home/ilias/Desktop/recs/ultralight.wav"
+    dst = "/home/ilias/Desktop/test.wav"
+    tb = tag_emulate(src, dst)
     tb.run()
 

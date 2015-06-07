@@ -65,8 +65,8 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     gr.enable_realtime_scheduling()
 
-    src =  "/home/ilias/Desktop/recs/ultralight.wav"
+    src =  "/home/ilias/Desktop/recs/1k.wav"
     dst = "/home/ilias/Desktop/test.wav"
-    tb = reader_emulate(src)
+    tb = reader_emulate(src, dst)
     tb.run()
 

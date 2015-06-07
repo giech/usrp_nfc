@@ -4,11 +4,8 @@ from utilities import Convert
 
 from miller import miller_encoder
 
-# TODOS: SEND REQA!!
-
 class Reader:
     def __init__(self, callback = None, rands=None, key=None):
-        self._cur_cmd = CommandType.REQA
         self._reset_tag()      
         self._callback = callback if callback else self._display
         self._encoder = None
@@ -62,7 +59,6 @@ class Reader:
 
     def process_packet(self, cmd, struct):
         if cmd.packet_type() != PacketType.TAG_TO_READER:
-           print "HERE" 
            return
 
         print "INCOMING"
