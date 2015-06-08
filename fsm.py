@@ -76,6 +76,18 @@ class fsm:
                 else:
                     enc_bits.extend(c.enc_bits(bits))
                 bits = enc_bits
+            elif cmd == CommandType.RANDTA:
+                c = cipher(self._cur_key)
+                uid_bits = Convert.to_bit_ar(self._uid)
+                nonce_bits = []
+                ll = len(bits)
+                for i in xrange(ll):
+                    if i%9 != 8:
+                        nonce_bits.append(bits[i])
+
+                c.set_tag_bits(uid_bits, nonce_bits, 0)
+                self._encryption = c
+            
         elif cmd == CommandType.ATQAUL:
             self._tag_type = TagType.ULTRALIGHT
         elif cmd == CommandType.ATQA1K:
@@ -84,9 +96,9 @@ class fsm:
             self._tag_type = TagType.CLASSIC4K
         elif cmd == CommandType.ATQADS:
             self._tag_type = TagType.DESFIRE
-        else:
-            pass            
+        else:     
             #print "TAG TYPE NOT CURRENTLY SUPPORTED", tag
+            pass
         return bits
 
     def _decrypt_bits(self, bits):
@@ -94,7 +106,10 @@ class fsm:
         if c:
             start_bits = []
             rem_bits = bits
-            if self._cur_cmd == CommandType.RANDTA and (len(bits)+1)/9 == CommandType.RANDRB.total_len():
+
+            ls = (len(bits)+1)/9
+
+            if self._cur_cmd == CommandType.RANDTA and ls == CommandType.RANDRB.total_len():
                 ll = len(rem_bits)/2           
                 rdr_enc_nonce = bits[0:ll]
                 start_bits = c.enc_bits(rdr_enc_nonce, 1, 1)                
@@ -179,9 +194,9 @@ class fsm:
         
         prev_cmd = self._cur_cmd
         cmd = CommandType.get_command_type(bytes, packet_type, prev_cmd)
+
         if cmd:
             self._cur_cmd = cmd
-
 
         c = CommandStructure.decode_command(cmd, bytes)
         self.process_command(cmd, c)

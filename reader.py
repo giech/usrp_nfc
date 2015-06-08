@@ -4,9 +4,11 @@ from utilities import Convert
 
 from miller import miller_encoder
 
+from rand import Rand
+
 class Reader:
     def __init__(self, callback = None, rands=None, key=None):
-        self._reset_tag()      
+
         self._callback = callback if callback else self._display
         self._encoder = None
         self._rands = [[0x15, 0x45, 0x90, 0xA8], 
@@ -26,7 +28,11 @@ class Reader:
                        [0xAE, 0x8D, 0x9C, 0x9C],
                        [0xD6, 0x8D, 0x04, 0x06]
                       ] if not rands else rands
+
+        self._random = Rand(self._rands)
+
         self._key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF] if not key else key
+        self._reset_tag()      
 
     def _display(self, bits):
         print bits
@@ -38,7 +44,7 @@ class Reader:
         self._readaddr = 0
         self._cur_addr = 0
         self._auth_addr = 0
-        self._rand_ind = 0
+        self._random.reset()
 
     def _handle_next(self, cmd, extra):
         struct = CommandStructure.encode_command(cmd, extra)
@@ -103,10 +109,7 @@ class Reader:
             self._uid.extend(uid)
             next_cmd = CommandType.SEL2R
         elif cmd == CommandType.RANDTA:
-            rands = self._rands
-            index = self._rand_ind
-            extra_param.extend(rands[index])
-            self._rand_ind = (index + 1) % len(rands)
+            extra_param.extend(self._random.get_next())
             
             c = cipher(self._key)
             uid_bits = Convert.to_bit_ar(self._uid)

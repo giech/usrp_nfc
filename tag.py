@@ -3,6 +3,7 @@ from cipher import cipher
 from utilities import Convert
 
 from miller import miller_encoder
+from rand import Rand
 
 class AccessType:
     READ = 0
@@ -56,6 +57,27 @@ class Tag:
         self._mem = self._tag_sector + 15*self._zero_sector
 
 
+        self._rands = [[0x0E, 0x61, 0x64, 0xD6], 
+                       [0x8F, 0x82, 0x69, 0x9E],
+                       [0xDC, 0xFC, 0x96, 0x2B], 
+                       [0x7A, 0x03, 0xD0, 0x83], 
+                       [0x21, 0x78, 0xEC, 0x8A], 
+                       [0x1A, 0x73, 0x27, 0x7A], 
+                       [0xC3, 0x29, 0xC5, 0xEF], 
+                       [0xD6, 0x65, 0x37, 0xEB], 
+                       [0x49, 0x9B, 0x28, 0xEA],
+                       [0x24, 0x45, 0xE0, 0x5E],
+                       [0x9D, 0x84, 0x0D, 0x39],
+                       [0xF7, 0xA7, 0xCB, 0x67],
+                       [0x46, 0xBD, 0x55, 0xC8],
+                       [0x08, 0x59, 0xA3, 0xFE],
+                       [0x40, 0xE8, 0x1A, 0xD8],
+                       [0x68, 0x93, 0x44, 0x01],
+                      ] if not rands else rands
+
+        self._random = Rand(self._rands)
+
+
         self._tag_type = TagType.CLASSIC1K
 
         self._callback = callback
@@ -70,8 +92,7 @@ class Tag:
         self._uid = self._get_uid()
         self._halt = False
         self._selected = False
-        self._auth_sector = None
-        self._auth_key = AuthKey.NONE
+        self._reset()
 
     def _get_uid(self):
         if self._tag_type == TagType.ULTRALIGHT:
@@ -138,8 +159,9 @@ class Tag:
             next_cmd = CommandType.ANTI2T
             extra_param = self._uid[4:]
         elif cmd == CommandType.SEL2R:
-            if struct.extra() != self._uid[4:]:
+            if struct.extra() != self._uid[4:]:                
                 self._selected = False
+                self._reset()
             else:
                 next_cmd = CommandType.SEL2T
         elif cmd == CommandType.READR:
@@ -156,9 +178,15 @@ class Tag:
         elif cmd == CommandType.HALT:
             self._halt = True
             self._selected = False
+            self._reset()
 
         self._handle_next(next_cmd, extra_param) 
 
+    def _reset(self):
+        self._auth = None
+        self._auth_key = AuthKey.NONE
+        self._auth_prosp = None
+        self._at = None
 
     @staticmethod
     def _check_complements(a, na):
@@ -172,7 +200,7 @@ class Tag:
         return True
 
     def _get_sector_access_bits(self, num):
-        offset = num*64 + 54
+        offset = num*16 + 54
         bytes = self._mem[offset:offset+4]
         return self._decode_access_bits(bytes)
 
@@ -197,15 +225,15 @@ class Tag:
         for i in xrange(4):
             val = 0
             for j in xrange(ll):
-                val |= ((ar[j]>> i) & 1) << j
+                val |= ((ar[j]>> i) & 1) << (2-j)
             ret.append(val)
         return ret
 
     def _get_access_result(self, block, access_type):
-        sector = self._auth_sector
+        sector = self._auth
         if sector == None:
             return AccessResult.NONE
-        if block/4 != sector:
+        if block/4 != sector/4:
             return AccessResult.NONE
         rem = block%4
         access_bits = self._get_sector_access_bits(sector)[rem]
@@ -286,7 +314,18 @@ class Tag:
                     print "SHOULD NEVER GET HERE"
                     return AccessResult.NONE
                     
-        
+    def _set_at(self, auth_key, prosp):
+        self._reset()
+        self._auth_key = auth_key
+        self._auth_prosp = prosp
+        extra_param = self._random.get_next()
+        c = cipher(self._keya if self._auth_key == AuthKey.A else self._keyb)
+        uid_bits = Convert.to_bit_ar(self._uid[0:4])
+        nonce_bits = Convert.to_bit_ar(extra_param)
+        c.set_tag_bits(uid_bits, nonce_bits, 0)
+        self._at = c.get_at()
+        return extra_param
+
 
     def process_packet_1k(self, cmd, struct):
         if cmd.packet_type() != PacketType.READER_TO_TAG:
@@ -303,14 +342,14 @@ class Tag:
         if cmd == CommandType.WUPA:
             next_cmd = CommandType.ATQA1K
             decoded = True
-            self._auth_sector = None
-            self._auth_key = AuthKey.NONE
+            self._selected = False
+            self._reset()
         elif cmd == CommandType.REQA:
             if not self._halt:
                 next_cmd = CommandType.ATQA1K
             decoded = True
-            self._auth_sector = None
-            self._auth_key = AuthKey.NONE
+            self._selected = False
+            self._reset()
         elif cmd == CommandType.ANTI1R:
             next_cmd = CommandType.ANTI1G
             extra_param = self._uid
@@ -329,33 +368,41 @@ class Tag:
 
         if cmd == CommandType.AUTHA:
             next_cmd = CommandType.RANDTA
-            #extra_param = 
+            extra_param = self._set_at(AuthKey.A, struct.extra()[0])
         elif cmd == CommandType.AUTHB:
             next_cmd = CommandType.RANDTA
-            #extra_param = 
+            extra_param = self._set_at(AuthKey.A, struct.extra()[0])
         elif cmd == CommandType.RANDRB:
             next_cmd = CommandType.RANDTB
+            extra_param = self._at
+            self._auth = self._auth_prosp
         elif cmd == CommandType.SEL2R:
-            if struct.extra() != self._uid[4:]:
-                self._selected = False
-            else:
-                next_cmd = CommandType.SEL2T
+            self._selected = False
+            self._reset()
         elif cmd == CommandType.READR:
             val = struct.extra()[0]
             if val <= 0x3F:
-                next_cmd = CommandType.READT
-                beg = val*4
-                if val <= 0x0C:
-                    extra_param = self._mem[beg:beg+16]
-                else:
-                    diff = val - 0x0C
-                    extra_param = self._mem[beg:]
-                    extra_param += self._mem[0:diff*4]
+                auth = self._get_access_result(val, AccessType.READ)
+                if auth != AccessResult.NONE:
+                    next_cmd = CommandType.READT
+                    beg = val*16
+                    mem = self._mem[beg:beg+16]
+                    if auth == AccessResult.ALL:
+                        extra_param = mem
+                    else:
+                        extra_param = []
+                        for i in xrange(16):
+                            if i < 6:
+                                mult = auth[0]
+                            elif i < 10:
+                                mult = auth[1]
+                            else:
+                                mult = auth[2]
+                            byte = mem[i]*mult
+                            extra_param.append(byte)
         elif cmd == CommandType.HALT:
             self._halt = True
-            self._selected = False
-            self._auth_sector = None
-            self._auth_key = AuthKey.NONE
+            self._reset()
 
         self._handle_next(next_cmd, extra_param) 
 
