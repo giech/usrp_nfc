@@ -19,6 +19,12 @@ from tag import Tag
 # ~ 30-40mV, ~ 18mA for amplitude of 1
         
 
+tag_type = 1 # Tag Type
+if tag_type == 0:
+    src =  "/home/ilias/Desktop/recs/ultralight.wav"
+else:
+    src =  "/home/ilias/Desktop/recs/1k.wav"
+
 class tag_emulate(gr.top_block):
     def __init__(self, src="uhd", dst="uhd", samp_rate=2e6):
         super(tag_emulate, self).__init__()
@@ -32,7 +38,7 @@ class tag_emulate(gr.top_block):
 
         self._bin_src = binary_src(samp_rate, encode="manchester", idle_bit=0)
         
-        self._tag = Tag(self._bin_src.set_bits)
+        self._tag = Tag(self._bin_src.set_bits, tag_type)
         self._back = background.background(True, False, self._tag)    
         self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
         self._connect(self._src, self._trans)
@@ -70,7 +76,6 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     gr.enable_realtime_scheduling()
 
-    src =  "/home/ilias/Desktop/recs/1k.wav"
     dst = "/home/ilias/Desktop/test.wav"
     tb = tag_emulate(src, dst)
     tb.run()
