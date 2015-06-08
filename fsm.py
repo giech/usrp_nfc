@@ -67,7 +67,7 @@ class fsm:
         elif tag == TagType.CLASSIC1K:
             self._cur_cmd = cmd
             c = self._encryption
-            if c:
+            if c and cmd != CommandType.RANDTA:
                 enc_bits = []
                 if cmd == CommandType.RANDRB:                  
                     ll = len(bits)/2
@@ -77,6 +77,8 @@ class fsm:
                     enc_bits.extend(c.enc_bits(bits))
                 bits = enc_bits
             elif cmd == CommandType.RANDTA:
+                old_enc = self._encryption
+                
                 c = cipher(self._cur_key)
                 uid_bits = Convert.to_bit_ar(self._uid)
                 nonce_bits = []
@@ -87,6 +89,8 @@ class fsm:
 
                 c.set_tag_bits(uid_bits, nonce_bits, 0)
                 self._encryption = c
+                if old_enc:
+                    bits = old_enc.enc_bits(bits)
             
         elif cmd == CommandType.ATQAUL:
             self._tag_type = TagType.ULTRALIGHT
@@ -174,10 +178,14 @@ class fsm:
             ar = cmd_str.extra()[4:]
             if ar != self._encryption.get_ar():
                 print "ERROR WITH AR"
+            else:
+                print "AR OK"
         elif cmd_tp == CommandType.RANDTB:
             at = cmd_str.extra()
             if at != self._encryption.get_at():
                 print "ERROR WITH AT"
+            else:
+                print "AT OK"
         elif cmd_tp == CommandType.READR:
             self._read = cmd_str.extra()
 
