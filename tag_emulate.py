@@ -13,7 +13,6 @@ from binary_src import binary_src
 
 import background
 import transition_sink
-import load_modulator
 from tag import Tag
 
 # ~ 30-40mV, ~ 18mA for amplitude of 1
@@ -43,19 +42,25 @@ class tag_emulate(gr.top_block):
         self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
         self._connect(self._src, self._trans)
 
+        sub = 847500
+        car = 13560000
 
-        freq = 13560000
         A = 1
 
         self._mult = blocks.multiply_vcc(1)
-        self._carrier = analog.sig_source_c(samp_rate, analog.GR_CONST_WAVE, freq, A, 0)
-        self._lm = load_modulator.load_modulator(self._carrier)
+        self._carrier = analog.sig_source_c(samp_rate, analog.GR_COS_WAVE, sub, A, 0)
 
-        self.connect(self._bin_src, self._lm)
-   #     self.connect((self._carrier, 0), (self._mult, 0))
-   #     self.connect((self._lm, 0), (self._mult, 1))       
+        self.connect((self._carrier, 0), (self._mult, 0))
+        self.connect((self._bin_src, 0), (self._mult, 1))  
+
+        
 
         if dst == "uhd":
+            self._real = blocks.complex_to_real(1)     
+            self._thres = blocks.threshold_ff(0.02, 0.1, 0)
+            self._r2c = blocks.float_to_complex(1)
+            self.connect(self._mult, self._real, self._thres, self._r2c)
+
             self._sink = uhd.usrp_sink(
                 device_addr="",
                 stream_args=uhd.stream_args(
@@ -64,12 +69,13 @@ class tag_emulate(gr.top_block):
                 ),
             )
             self._sink.set_samp_rate(samp_rate)
-            #self._sink.set_center_freq(freq)
-            self.connect(self._carrier, self._sink)
+            self._sink.set_center_freq(car)
+            self._sink.set_gain(32)
+            self.connect(self._r2c, self._sink)
         else:
             self._c2 = blocks.complex_to_mag_squared(1) #complex_to_mag_squared #complex_to_real
             self._sink = blocks.wavfile_sink(dst, 1, int(samp_rate))
-            self.connect(self._bin_src, self._c2, self._sink)
+            self.connect(self._mult, self._c2, self._sink)
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
