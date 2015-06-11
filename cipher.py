@@ -2,6 +2,7 @@
 
 import lfsr
 from utilities import Convert
+
 class cipher:
     def __init__(self, key):
         self._bits = Convert.to_bit_ar(key)

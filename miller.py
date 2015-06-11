@@ -226,28 +226,6 @@ class miller_encoder:
             else:
                 durs.extend(cur_bits)
 
-        s ='''
-        count = 0
-        for b in durs:
-            bit, dur = b
-            if bit == 0:
-                count += 1
-            else:
-                if dur < 7:
-                    print "SHORT"
-                elif dur < 12:
-                    print "MED"
-                else:
-                    print "LONG"
-        print "ZERO COUNT", count'''
         return durs
 
 
-if __name__ == '__main__':
-    from packets import CommandType
-    bytes = CommandType.get_bytes(CommandType.ANTI1R) 
-    bits = CommandType.get_bits(CommandType.ANTI1R, bytes)    
-    print bits
-    ans = miller_encoder.encode_bits(bits)
-    for pair in ans:
-        print pair

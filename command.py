@@ -181,7 +181,7 @@ class CommandType:
             if option.is_compatible(bytes):
                 return option            
             
-        except KeyError:
+        except Exception:
             pass
         return None
 

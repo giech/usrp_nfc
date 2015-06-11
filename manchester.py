@@ -74,10 +74,3 @@ class manchester_encoder:
                 
         return durs
 
-if __name__ == '__main__':
-    from packets import CommandType
-    bytes = CommandType.get_bytes(CommandType.SEL1T) 
-    bits = CommandType.get_bits(CommandType.SEL1T, bytes)    
-    ans = manchester_encoder.encode_bits(bits)
-    for pair in ans:
-        print pair

@@ -9,8 +9,8 @@ class transition_sink(gr.sync_block):
         gr.sync_block.__init__(
             self,
             name = "transition_sink",
-            in_sig = [numpy.float32], # Input signature: 1 float at a time
-            out_sig = None, # Output signature: 1 float at a time
+            in_sig = [numpy.float32],
+            out_sig = None,
         )
 
         self._max = max_len

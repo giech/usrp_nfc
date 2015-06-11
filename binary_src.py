@@ -20,8 +20,8 @@ class binary_src(gr.sync_block):
         gr.sync_block.__init__(
             self,
             name = "binary_src",
-            in_sig = None, # Input signature: 1 float at a time
-            out_sig = [numpy.complex64], # Output signature: 1 float at a time
+            in_sig = None, 
+            out_sig = [numpy.complex64],
         )
 
         if encode == "manchester":
