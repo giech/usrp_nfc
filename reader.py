@@ -7,31 +7,16 @@ from miller import miller_encoder
 from rand import Rand
 
 class Reader:
-    def __init__(self, callback = None, rands=None, key=None):
+    def __init__(self, callback = None, rands=None, keya=None, keyb=None):
 
         self._callback = callback if callback else self._display
         self._encoder = None
-        self._rands = [[0x15, 0x45, 0x90, 0xA8], 
-                       [0x01, 0x3A, 0x6B, 0xBA],
-                       [0xEE, 0x08, 0xB0, 0x0A], 
-                       [0x2F, 0x44, 0xA3, 0x06], 
-                       [0xC7, 0xC9, 0xD8, 0x8B], 
-                       [0xCE, 0x0C, 0xD2, 0x7C], 
-                       [0x9B, 0xF6, 0xC8, 0x66], 
-                       [0x73, 0xB3, 0xBB, 0x75], 
-                       [0x96, 0x66, 0x8E, 0x10],
-                       [0x72, 0x10, 0xA5, 0xFB],
-                       [0x52, 0x3A, 0xA8, 0x5B],
-                       [0xE0, 0x8E, 0x57, 0xCB],
-                       [0x78, 0x81, 0xCB, 0x50],
-                       [0x4D, 0x95, 0xCA, 0x3A],
-                       [0xAE, 0x8D, 0x9C, 0x9C],
-                       [0xD6, 0x8D, 0x04, 0x06]
-                      ] if not rands else rands
+        self._random = Rand(rands)
 
-        self._random = Rand(self._rands)
-
-        self._key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF] if not key else key
+        self._keya = keya
+        self._keyb = keyb
+    
+        self._key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF] if not self._keya else self._keya
         self._reset_tag()      
 
     def _display(self, bits):

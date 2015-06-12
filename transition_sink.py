@@ -51,8 +51,14 @@ class transition_sink(gr.sync_block):
         for bit in ii0:
             prev = ar[index]
             prev_state = cur_state
-
-            ratio = bit*length/ss
+    
+            if ss == 0:
+                if bit == 0:
+                    ratio = 1
+                else:
+                    ratio = hi + 0.1
+            else:
+                ratio = bit*length/ss
 
             if lo > ratio:
                 val = -1

@@ -24,60 +24,41 @@ class AuthKey:
     B = 2
 
 class Tag:
-    def __init__(self, callback = None, tag_type=TagType.ULTRALIGHT, rands=None):
+
+    @staticmethod
+    def generate_1k():
+        zero_block = [0x00]*16
+        keya = [0xFF]*6
+        keyb = [0xFF]*6
+        acc  = [0xFF, 0x07, 0x80, 0x69] # access controls
+        key_block  = keya + acc + keyb
+        zero_sector = zero_block*3 + key_block 
+        tag_block = [0xCD, 0x76, 0x92, 0x74, 
+                     0x5D, 0x88, 0x04, 0x00,
+                     0x85, 0x00, 0x00, 0x00,
+                     0x04, 0x13, 0x45, 0x01] 
+        tag_sector = tag_block + zero_block*2 + key_block
+        mem = tag_sector + 15*zero_sector
+
+        return mem
+
+    @staticmethod
+    def get_keys_from_mem(mem):
+        start = 16*3
+        key_block = mem[start:start+16]
+        keya = key_block[0:6]
+        keyb = key_block[10:16]
+        return (keya, keyb)
+
+    def __init__(self, callback = None, tag_type=TagType.ULTRALIGHT, memory=None, rands=None):
         self._tag_type = tag_type
-        if tag_type == TagType.ULTRALIGHT:
-            self._mem = [0x04, 0xBE, 0x6F, 0x5D,
-                         0x22, 0x09, 0x29, 0x80,
-                         0x82, 0x48, 0x00, 0x00,
-                         0xE1, 0x10, 0x12, 0x00,
-                         0x01, 0x03, 0xA0, 0x10,
-                         0x44, 0x03, 0x00, 0xFE,
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00, 
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00, 
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00,
-                         0x00, 0x00, 0x00, 0x00]
-        else:
-            self._zero_block = [0x00]*16
-            self._keya = [0xFF]*6
-            self._keyb = [0xFF]*6
-            self._acc  = [0xFF, 0x07, 0x80, 0x69]
-            self._key_block  = self._keya + self._acc + self._keyb
-            self._zero_sector = self._zero_block*3 + self._key_block 
-            self._tag_block = [0xCD, 0x76, 0x92, 0x74, 
-                               0x5D, 0x88, 0x04, 0x00,
-                               0x85, 0x00, 0x00, 0x00,
-                               0x04, 0x13, 0x45, 0x01] 
-            self._tag_sector = self._tag_block + self._zero_block*2 + self._key_block
-            self._mem = self._tag_sector + 15*self._zero_sector
+        self._mem = memory
 
-
-        self._rands = [[0x0E, 0x61, 0x64, 0xD6], 
-                       [0x8F, 0x82, 0x69, 0x9E],
-                       [0xDC, 0xFC, 0x96, 0x2B], 
-                       [0x7A, 0x03, 0xD0, 0x83], 
-                       [0x21, 0x78, 0xEC, 0x8A], 
-                       [0x1A, 0x73, 0x27, 0x7A], 
-                       [0xC3, 0x29, 0xC5, 0xEF], 
-                       [0xD6, 0x65, 0x37, 0xEB], 
-                       [0x49, 0x9B, 0x28, 0xEA],
-                       [0x24, 0x45, 0xE0, 0x5E],
-                       [0x9D, 0x84, 0x0D, 0x39],
-                       [0xF7, 0xA7, 0xCB, 0x67],
-                       [0x46, 0xBD, 0x55, 0xC8],
-                       [0x08, 0x59, 0xA3, 0xFE],
-                       [0x40, 0xE8, 0x1A, 0xD8],
-                       [0x68, 0x93, 0x44, 0x01],
-                      ] if not rands else rands
-
-        self._random = Rand(self._rands)
-
+        if tag_type == TagType.CLASSIC1K:
+            self._random = Rand(rands)
+            keya, keyb = Tag.get_keys_from_mem(self._mem)
+            self._keya = keya
+            self._keyb = keyb
 
         self._callback = callback
 
