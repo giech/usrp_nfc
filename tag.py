@@ -60,7 +60,7 @@ class Tag:
             self._keya = keya
             self._keyb = keyb
 
-        self._callback = callback
+        self._callback = callback if callback else self._display
 
         if self._tag_type == TagType.ULTRALIGHT:
             self.process_packet = self.process_packet_ul
@@ -72,7 +72,11 @@ class Tag:
         self._uid = self._get_uid()
         self._halt = False
         self._selected = False
+        self._encode = None
         self._reset()
+
+    def wake_up(self):
+        self._halt = False
 
     def _get_uid(self):
         if self._tag_type == TagType.ULTRALIGHT:
@@ -85,9 +89,9 @@ class Tag:
 
     def _handle_next(self, cmd, extra):
         if not cmd:
-            return
+            return None
         struct = CommandStructure.encode_command(cmd, extra)
-        print "OUTGOING"
+        print "TAG OUTGOING"
         struct.display()
 
         all_bits = Convert.to_bit_ar(struct.all_bytes(), True)
@@ -95,6 +99,7 @@ class Tag:
             all_bits = self._encode(all_bits, cmd)   
         #print all_bits
         self._callback(all_bits)
+        return (cmd, struct)
         
 
     def set_encoder(self, encode):
@@ -102,9 +107,9 @@ class Tag:
 
     def process_packet_ul(self, cmd, struct):
         if cmd.packet_type() != PacketType.READER_TO_TAG:
-           return
+           return None
 
-        print "INCOMING"
+        print "TAG INCOMING"
         struct.display()
 
         next_cmd = None
@@ -130,10 +135,10 @@ class Tag:
             decoded = True
 
         if decoded:
-            self._handle_next(next_cmd, extra_param)
-            return
+            ret = self._handle_next(next_cmd, extra_param)
+            return ret
         if not self._selected:
-            return
+            return None
 
         if cmd == CommandType.ANTI2R:
             next_cmd = CommandType.ANTI2T
@@ -160,7 +165,8 @@ class Tag:
             self._selected = False
             self._reset()
 
-        self._handle_next(next_cmd, extra_param) 
+        ret = self._handle_next(next_cmd, extra_param) 
+        return ret
 
     def _reset(self):
         self._auth = None
@@ -309,7 +315,7 @@ class Tag:
 
     def process_packet_1k(self, cmd, struct):
         if cmd.packet_type() != PacketType.READER_TO_TAG:
-           return
+           return None
 
         print "INCOMING"
         struct.display()
@@ -341,10 +347,10 @@ class Tag:
             decoded = True
 
         if decoded:
-            self._handle_next(next_cmd, extra_param)
-            return
+            ret = self._handle_next(next_cmd, extra_param)
+            return ret
         if not self._selected:
-            return
+            return None
 
         if cmd == CommandType.AUTHA:
             next_cmd = CommandType.RANDTA
@@ -384,5 +390,5 @@ class Tag:
             self._halt = True
             self._reset()
 
-        self._handle_next(next_cmd, extra_param) 
-
+        ret = self._handle_next(next_cmd, extra_param) 
+        return ret

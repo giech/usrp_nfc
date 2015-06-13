@@ -22,13 +22,13 @@ class decoder(gr.hier_block2):
             self._r2c = blocks.float_to_complex(1)
             self._src = blocks.complex_to_mag_squared(1)
             self.connect(self._wav, self._r2c, self._src)
-            hi_val = 1.09
+            hi_val = 1.09 # may need to be set to 1.05 depending on antenna setup
 
         self._back = background.background(reader, tag, emulator)    
         self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
         self._connect(self._src, self._trans)
 
-
         if dst and dst != "uhd" and src == "uhd":
             self._rec = record.record(dst, samp_rate)
             self._connect(self._src, self._rec)
+

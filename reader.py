@@ -18,9 +18,10 @@ class Reader:
     
         self._key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF] if not self._keya else self._keya
         self._reset_tag()      
+        self._encode = None
 
-    def _display(self, bits):
-        print bits
+    def _display(self, bits, finished=False):
+        print bits, finished
 
     def _reset_tag(self):
         self._uid = []
@@ -33,7 +34,7 @@ class Reader:
 
     def _handle_next(self, cmd, extra):
         struct = CommandStructure.encode_command(cmd, extra)
-        print "OUTGOING"
+        print "READER OUTGOING"
         struct.display()
         if cmd == CommandType.HALT:
            self._reset_tag()
@@ -43,6 +44,7 @@ class Reader:
             all_bits = self._encode(all_bits, cmd)   
         #print all_bits
         self._callback(all_bits, cmd == CommandType.HALT)
+        return (cmd, struct) 
 
     def set_encoder(self, encode):
         self._encode = encode
@@ -50,9 +52,9 @@ class Reader:
 
     def process_packet(self, cmd, struct):
         if cmd.packet_type() != PacketType.TAG_TO_READER:
-           return
+           return None
 
-        print "INCOMING"
+        print "READER INCOMING"
         struct.display()
 
         next_cmd = CommandType.HALT
@@ -137,4 +139,5 @@ class Reader:
         else:
             print "ERROR, Unexpected command!!"
 
-        self._handle_next(next_cmd, extra_param)
+        ret = self._handle_next(next_cmd, extra_param)
+        return ret
