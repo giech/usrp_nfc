@@ -1,2 +1,9 @@
 *.pyc
 *~
+*.bbl
+*.aux
+*.blg
+*.log
+*.out
+*.toc
+report/ref/*

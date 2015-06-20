@@ -1,0 +1,123 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[fleqn,10pt]{SelfArx} % Document font size and equations flushed left
+
+%----------------------------------------------------------------------------------------
+%	COLUMNS
+%----------------------------------------------------------------------------------------
+
+\setlength{\columnsep}{0.55cm} % Distance between the two columns of text
+\setlength{\fboxrule}{0.75pt} % Width of the border around the abstract
+\usepackage{enumitem} % For spacing in enumerate
+
+%----------------------------------------------------------------------------------------
+%	COLORS
+%----------------------------------------------------------------------------------------
+
+\definecolor{color1}{RGB}{0,0,90} % Color of the article title and sections
+\definecolor{color2}{RGB}{0,20,20} % Color of the boxes behind the abstract and headings
+
+%----------------------------------------------------------------------------------------
+%	HYPERLINKS
+%----------------------------------------------------------------------------------------
+
+\usepackage{hyperref} % Required for hyperlinks
+\hypersetup{hidelinks,colorlinks,breaklinks=true,urlcolor=color2,citecolor=color1,linkcolor=color1,bookmarksopen=false,pdftitle={Title},pdfauthor={Author}}
+
+%----------------------------------------------------------------------------------------
+%	ARTICLE INFORMATION
+%----------------------------------------------------------------------------------------
+
+\JournalInfo{\ } % Journal information
+\Archive{} % Additional notes (e.g. copyright, DOI, review/research article)
+
+\PaperTitle{Eavesdropping and Emulating MIFARE Ultralight and Classic Cards Using Software Defined Radio} % Article title
+
+\Authors{Ilias Giechaskiel\textsuperscript{1}} % Authors
+\affiliation{\textsuperscript{1}\textit{CDT in Cyber Security, University of Oxford, Oxford, United Kingdom}} % Author affiliation
+
+\Keywords{} % Keywords - if you don't want any simply remove all the text between the curly brackets
+\newcommand{\keywordname}{Keywords} % Defines the keywords heading name
+
+%----------------------------------------------------------------------------------------
+%	ABSTRACT
+%----------------------------------------------------------------------------------------
+
+\Abstract{
+In this report, we describe a Software-Defined Radio (SDR) approach for eavesdropping on Near Field Communications (NFC) and Radio Frequency Identification (RFID) cards operating at 13.56MHz. We show that GNU Radio and Python make a great platform for prototyping, while maintaining sufficient performance for passive attacks without extensive optimizations and using only modest processing power. We successfully eavesdrop on real MIFARE Ultralight and Classic 1K cards by capturing the raw radio waves with a home-made antenna. We recover the plaintext of both reader and tag fully by demodulating the incoming radio waves, parsing individual bits and error detection codes into packets, and then decrypting them if necessary. On the transmission side, we achieve full software emulation of the reader and of MIFARE Ultralight and Classic 1K cards (including encryption), and partial hardware emulation, where we correctly modulate the signal, but not within the strict timing limits of the protocol. Our transmissions can also be used to prevent legitimate communication by interfering with the intended reader or tag signals.
+}
+
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\flushbottom % Makes all text pages the same height
+
+\maketitle % Print the title and abstract box
+
+% \tableofcontents % Print the contents section
+
+\thispagestyle{empty} % Removes page numbering from the first page
+
+%----------------------------------------------------------------------------------------
+%	INTRODUCTION
+%----------------------------------------------------------------------------------------
+
+\section{Introduction}
+\label{sec:introduction}
+
+Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally, such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies, to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
+
+
+To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wires that allows passive eavesdropping on reader-tag communication. Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has "a market share of more than 77\% in the transport ticketing industry", with "150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{sec:XXX}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions are as follows:
+
+\begin{enumerate}[noitemsep] % noitemsep if only for items (not before-after) or nosep for all
+\item We implement in pure Software-Defined Radio a demodulator for NFC/RFID readers and tags operating in the 13.56MHz frequency, which decodes radio waves into plaintext packets
+\item We test our implementation by eavesdropping on real MIFARE Classic 1K and Ultralight communications with an RFID reader using a home-made antenna and a USRP, successfully decoding any encrypted packets
+\item We additionally implement in software the emulation of both readers and tags, including encryption if necessary
+\item Though our transmission capabilities are hindered by the strict timing requirements of the protocol, we show how our implementation can jam real reader-tag communications and prevent successful transmission of data
+\item Overall, our work shows that prototyping using Software-Defined Radio is sufficient in practice for passive attacks, without the need for extensive optimizations or heavy computing power
+\end{enumerate}
+
+
+%----------------------------------------------------------------------------------------
+%	LITERATURE REVIEW
+%----------------------------------------------------------------------------------------
+
+\section{Related Work}
+\label{sec:related}
+
+Early work on RFID Hacking was conducted in a non-academic context, and focused on finding vulnerabilities in access control systems \cite{ccc, mbta}. Later,  Buettner and Wetherall \cite{sdruhf, gen2usrp, phymac} experimented more systematically with RFID and SDR, but focused primarily on Gen 2 cards operating at 900MHz. Their work was extended by others, typically in the context of proposing better protocols \cite{gnuradio, zoe}, but still for Ultra High Frequencies (UHF), with the exception of a recent work by Hassanieh et al. \cite{randomization}, which also included an extension to HF.  
+
+There have also been a number of designs use microcontrollers and Field-Programmable Gate Arrays (FPGAs) for signal processing, such as the Proxmark 3 \cite{proxmark}, RFIDler \cite{rfidler}. Though such projects allow the use of custom firmware for additional functionality, they also require dedicated hardware in their design.
+
+The MIFARE Classic cryptographic protocol was reverse-engineered by Nohl et al. by dissolving the plastic surrounding the chips, recovering the individual logic gates and converting them to a high-level algorithm \cite{crypto1}. Garcia et al. then discovered additional vulnerabilities of the protocol based on its nested authentication and parity bits \cite{classicvulnerabilities}. Due to the wide range of applications of the MIFARE Classic, the topic became very popular for Master's thesis projects \cite{classicimplementation, chipkaart, classicrng, imperial}, which found additional vulnerabilities, or examined the problem within the context of a specific application.
+
+Finally, given the widespread availability of NFC-enabled mobile devices, researchers have also focused on NFC relay attacks using mobile phones \cite{relay, practicalrelay}, as well as exploring \cite{nfcsurface} and protecting \cite{engarde} the NFC mobile phone stack. 
+
+
+
+%----------------------------------------------------------------------------------------
+%	ACKNOWLEDGMENTS
+%----------------------------------------------------------------------------------------
+
+\phantomsection
+\section*{Acknowledgments} % The \section*{} command stops section numbering
+
+I would like to thank Kasper Rasmussen for being my supervisor, for his invaluable help throughout the project, and for entrusting me with his expensive equipment. I would also like to thank Simon Crowe for helping shape the focus of the project. Finally, I would like to thank Kellogg College and their Research Support Grant which enabled the purchase of some of the components that were used in this project.
+
+%----------------------------------------------------------------------------------------
+%	BIBLIOGRAPHY
+%----------------------------------------------------------------------------------------
+\phantomsection
+\bibliographystyle{acm}
+\bibliography{bibliography}
+
+
+
+\end{document}
