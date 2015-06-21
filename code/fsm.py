@@ -105,9 +105,30 @@ class fsm:
             pass
         return bits
 
+    def _print_enc(self, bits):
+        cur_ind = 0
+        set_bits = 0
+        cur_byte = 0
+        for bit in bits:
+            if cur_ind < 8:
+                cur_byte |= (bit << cur_ind)
+                cur_ind += 1
+                set_bits += bit
+            else:
+                if set_bits & 1 == bit: # OK 
+                    print format(cur_byte, "#04X") + "!",
+                else:
+                    print format(cur_byte, "#04X"),
+
+                set_bits = cur_byte = cur_ind = 0
+
+        print ''
+
     def _decrypt_bits(self, bits):
         c = self._encryption        
         if c:
+            self._print_enc(bits)
+
             start_bits = []
             rem_bits = bits
 

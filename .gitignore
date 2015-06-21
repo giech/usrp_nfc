@@ -4,6 +4,6 @@
 *.aux
 *.blg
 *.log
-*.out
 *.toc
 report/ref/*
+report/*.out
