@@ -33,7 +33,7 @@
 \JournalInfo{\ } % Journal information
 \Archive{} % Additional notes (e.g. copyright, DOI, review/research article)
 
-\PaperTitle{Eavesdropping and Emulating MIFARE Ultralight and Classic Cards Using Software Defined Radio} % Article title
+\PaperTitle{Eavesdropping on and Emulating MIFARE Ultralight and Classic Cards Using Software Defined Radio} % Article title
 
 \Authors{Ilias Giechaskiel\textsuperscript{1}} % Authors
 \affiliation{\textsuperscript{1}\textit{CDT in Cyber Security, University of Oxford, Oxford, United Kingdom}} % Author affiliation
@@ -42,11 +42,17 @@
 \newcommand{\keywordname}{Keywords} % Defines the keywords heading name
 
 %----------------------------------------------------------------------------------------
+%	OTHER
+%----------------------------------------------------------------------------------------
+
+\newcommand{\ms}{\ensuremath{\mu s} }
+
+%----------------------------------------------------------------------------------------
 %	ABSTRACT
 %----------------------------------------------------------------------------------------
 
 \Abstract{
-In this report, we describe a Software-Defined Radio (SDR) approach for eavesdropping on Near Field Communications (NFC) and Radio Frequency Identification (RFID) cards operating at 13.56MHz. We show that GNU Radio and Python make a great platform for prototyping, while maintaining sufficient performance for passive attacks without extensive optimizations and using only modest processing power. We successfully eavesdrop on real MIFARE Ultralight and Classic 1K cards by capturing the raw radio waves with a home-made antenna. We recover the plaintext of both reader and tag fully by demodulating the incoming radio waves, parsing individual bits and error detection codes into packets, and then decrypting them if necessary. On the transmission side, we achieve full software emulation of the reader and of MIFARE Ultralight and Classic 1K cards (including encryption), and partial hardware emulation, where we correctly modulate the signal, but not within the strict timing limits of the protocol. Our transmissions can also be used to prevent legitimate communication by interfering with the intended reader or tag signals.
+In this report, we describe a Software-Defined Radio (SDR) approach for eavesdropping on Near Field Communications (NFC) and Radio Frequency Identification (RFID) cards operating at 13.56 MHz. We show that GNU Radio and Python make a great platform for prototyping, while maintaining sufficient performance for passive attacks without extensive optimizations and using only modest processing power. We successfully eavesdrop on real MIFARE Ultralight and Classic 1K cards by capturing the raw radio waves with a home-made antenna. We recover the plaintext of both reader and tag fully by demodulating the incoming radio waves, parsing individual bits and error detection codes into packets, and then decrypting them if necessary. On the transmission side, we achieve full software emulation of the reader and of MIFARE Ultralight and Classic 1K cards (including encryption), and partial hardware emulation, where we correctly modulate the signal, but not within the strict timing limits of the protocol. Our transmissions can also be used to prevent legitimate communication by interfering with the intended reader or tag signals.
 }
 
 
@@ -74,15 +80,17 @@ In this report, we describe a Software-Defined Radio (SDR) approach for eavesdro
 Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally, such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies, to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
 
 
-To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wires that allows passive eavesdropping on reader-tag communication. Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has "a market share of more than 77\% in the transport ticketing industry", with "150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{sec:XXX}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions are as follows:
+To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wire that allows passive eavesdropping on reader-tag communication. Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has ``a market share of more than 77\% in the transport ticketing industry", with ``150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{sec:XXX}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions are as follows:
 
-\begin{enumerate}[noitemsep] % noitemsep if only for items (not before-after) or nosep for all
-\item We implement in pure Software-Defined Radio a demodulator for NFC/RFID readers and tags operating in the 13.56MHz frequency, which decodes radio waves into plaintext packets
-\item We test our implementation by eavesdropping on real MIFARE Classic 1K and Ultralight communications with an RFID reader using a home-made antenna and a USRP, successfully decoding any encrypted packets
-\item We additionally implement in software the emulation of both readers and tags, including encryption if necessary
-\item Though our transmission capabilities are hindered by the strict timing requirements of the protocol, we show how our implementation can jam real reader-tag communications and prevent successful transmission of data
-\item Overall, our work shows that prototyping using Software-Defined Radio is sufficient in practice for passive attacks, without the need for extensive optimizations or heavy computing power
+\begin{enumerate}[noitemsep]
+\item We implement in pure Software-Defined Radio a demodulator for NFC/RFID readers and tags operating in the 13.56 MHz frequency, which decodes radio waves into plaintext packets.
+\item We test our implementation by eavesdropping on real MIFARE Classic 1K and Ultralight communications with an RFID reader using a home-made antenna and a USRP, successfully decoding any encrypted packets.
+\item We additionally implement in software the emulation of both readers and tags, including encryption if necessary.
+\item Though our transmission capabilities cannot keep up with the strict timing requirements of the protocol, we show how our implementation can jam real reader-tag communications and prevent the successful transmission of data.
+\item Overall, our work shows that prototyping using Software-Defined Radio is sufficient in practice for passive attacks, without the need for extensive optimizations or heavy computing power.
 \end{enumerate}
+
+PAPER STRUCTURE
 
 
 %----------------------------------------------------------------------------------------
@@ -92,13 +100,139 @@ To this end, we developed such an implementation on an Ettus Research Universal 
 \section{Related Work}
 \label{sec:related}
 
-Early work on RFID Hacking was conducted in a non-academic context, and focused on finding vulnerabilities in access control systems \cite{ccc, mbta}. Later,  Buettner and Wetherall \cite{sdruhf, gen2usrp, phymac} experimented more systematically with RFID and SDR, but focused primarily on Gen 2 cards operating at 900MHz. Their work was extended by others, typically in the context of proposing better protocols \cite{gnuradio, zoe}, but still for Ultra High Frequencies (UHF), with the exception of a recent work by Hassanieh et al. \cite{randomization}, which also included an extension to HF.  
+Early work on RFID Hacking was conducted in a non-academic context, and focused on finding vulnerabilities in access control systems \cite{ccc, mbta}. Later,  Buettner and Wetherall \cite{sdruhf, gen2usrp, phymac} experimented more systematically with RFID and SDR, but focused primarily on Gen 2 cards operating at 900 MHz. Their work was extended by others, typically in the context of proposing better protocols \cite{gnuradio, zoe}, but still for Ultra High Frequencies (UHF), with the exception of a recent work by Hassanieh et al. \cite{randomization}, which also included an extension to HF.  
 
-There have also been a number of designs use microcontrollers and Field-Programmable Gate Arrays (FPGAs) for signal processing, such as the Proxmark 3 \cite{proxmark}, RFIDler \cite{rfidler}. Though such projects allow the use of custom firmware for additional functionality, they also require dedicated hardware in their design.
+There have also been a number of designs which use microcontrollers and Field-Programmable Gate Arrays (FPGAs) for signal processing, such as the Proxmark 3 \cite{proxmark}, and RFIDler \cite{rfidler}. Though such projects allow the use of custom firmware for additional functionality, they also require dedicated hardware in their design.
 
 The MIFARE Classic cryptographic protocol was reverse-engineered by Nohl et al. by dissolving the plastic surrounding the chips, recovering the individual logic gates and converting them to a high-level algorithm \cite{crypto1}. Garcia et al. then discovered additional vulnerabilities of the protocol based on its nested authentication and parity bits \cite{classicvulnerabilities}. Due to the wide range of applications of the MIFARE Classic, the topic became very popular for Master's thesis projects \cite{classicimplementation, chipkaart, classicrng, imperial}, which found additional vulnerabilities, or examined the problem within the context of a specific application.
 
 Finally, given the widespread availability of NFC-enabled mobile devices, researchers have also focused on NFC relay attacks using mobile phones \cite{relay, practicalrelay}, as well as exploring \cite{nfcsurface} and protecting \cite{engarde} the NFC mobile phone stack. 
+
+
+
+%----------------------------------------------------------------------------------------
+%	THEORY
+%----------------------------------------------------------------------------------------
+
+\section{Background}
+\label{sec:background}
+
+The terms Radio Frequency Identification (RFID), Near Field Communication (NFC), contactless smartcards, proximity cards and vicinity cards are often used interchangeably, but they are covered by different standards and concern different parts of the radio spectrum. In this project, we looked at the ISO/IEC 14443 standard, with physical characteristics defined in \cite{iso144431}, modulation and encoding in \cite{iso144432}, initialization and anticollision in \cite{iso144433} and transmission protocols in \cite{iso144434}.
+
+Specifically, we focus on {\bf Type A} communications, whose {\bf carrier frequency} is $f_c=13.56$ MHz. The reader -- or {\bf Proximity Coupling Device (PCD)} -- communicates with the card -- or {\bf Proximity Integrated Circuit Card (PICC)} -- through {\bf 100\% Amplitude Shift Keying (ASK)}, with data using the {\bf Modified Miller} encoding. The communication from tag to reader utilizes {\bf Load Modulation} with a {\bf subcarrier frequency} of $f_s=f_c/16=847.5$ kHz, using {\bf Manchester Encoding}, and both transmit at a rate of 106 kbit/s. 
+
+Because the carrier frequency is $f_c=13.56$ MHz, the wavelength is $c/f_c\approx22$ meters, making it impossible to deploy antennas that would fit in a card-size form-factor. Additionally, because the cards are {\bf passive} (i.e. do not have their own power source), both the communication and the power source are achieved through {\bf inductive coupling} from the PCD's antenna loop to the PICC's antenna loop.  
+
+SECTION STRUCTURE
+
+\subsection{PCD Transmissions}
+\label{subsec:pcd}
+
+Amplitude Shift Keying (ASK) of depth $X$\% is a form of digital modulation which specifies that if the amplitude of the signal representing a digital $1$ is equal to $A$ and the amplitude of the signal representing a digital $0$ is equal to $B$, then $X=\frac{A-B}{A+B}$, as showing in Figure \ref{fig:ask}. Specifically, for 100\% ASK, no signal is sent at all during a digital $0$, indicating that such periods must be very brief, since the PICC needs to keep charge (using a capacitor) for the period of silence.
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/ask.png}
+  \caption{Amplitude Shift Keying (ASK) \cite{atmel}}
+  \label{fig:ask}
+\end{figure}
+
+This is achieved through the Modified Miller Encoding, which ensures that there is no period of more than 3\ms of silence (``pause"). Specifically, every bit is represented as a (combination of) signals lasting a total of $t_b=128/f_c\approx9.44\ms$. The encoding (show in Figure \ref{fig:miller}) is as follows:
+\begin{itemize}[noitemsep] 
+\item A 1 is encoded as an unmodulated signal for $t_b/2\approx 4.72 \ms$, followed by a period of silence for 3\ms, followed by an unmodulated signal for $t_b/2-3\approx 1.72\ms$
+\item A 0 after a 0 is encoded as a silence period for 3\ms followed by an unmodulated signal for $t_b-3\approx 6.44\ms$
+\item A 0 after a 1 is encoded as an unmodulated signal for a period of $t_b\approx9.44\ms$
+\item To indicate the beginning and the end of a transmission, a logical 0 is used for both the start and the end
+\end{itemize}
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/miller.png}
+  \caption{Miller Encoding at 100\% ASK \cite{atmel}}
+  \label{fig:miller}
+\end{figure}
+
+In practice, however, because of hardware imperfections, the pause is not perfect, but needs to comply with the requirements shown in Figure \ref{fig:pause}. As a result, the modulated carrier for the encodings resembles Figure \ref{fig:miller2}.
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/pause.png}
+  \caption{Real Pause Requirements \cite{iso144432}}
+  \label{fig:pause}
+\end{figure}
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/miller2.png}
+  \caption{Realistic Miller Encoding \cite{mifare}}
+  \label{fig:miller2}
+\end{figure}
+
+\subsection{PICC Transmissions}
+\label{subsec:picc}
+
+As mentioned above, the tag does not have sufficient power for active transmissions. Consequently, the PICC achieves data transmission passively, by changing its {\em load}, which can be inferred as a voltage drop on the PCD, hence the term {\bf load modulation}. Switching the load generates a {\bf subcarrier}, which has a frequency $f_s=f_c/16=847.5$ kHz. 
+
+The bits are then encoded using {\bf On-Off Keying (OOK)} or {\bf Manchester Encoding} as follows, with a total duration also equal to $t_b\approx9.44\ms$, which also equals 8 periods of the subcarrier, also shown in Figures \ref{fig:manchester} and \ref{fig:manchester2}:
+
+\begin{itemize}[noitemsep] 
+\item A 1 is encoded by modulating the subcarrier for the {\em first} half ($=t_b/2\approx4.72\ms$) of the bit duration
+\item A 0  is encoded by modulating the subcarrier for the {\em second} half ($=t_b/2\approx4.72\ms$) of the bit duration
+\item A logical 1 starts the transmission
+\item No modulation signifies the end of a transmission
+\end{itemize}
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/manchester2.png}
+  \caption{Manchester Encoding with Load Modulation \cite{mifare}}
+  \label{fig:manchester}
+\end{figure}
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/manchester.png}
+  \caption{Envelope of Load Modulation \cite{atmel}}
+  \label{fig:manchester2}
+\end{figure}
+
+\subsection{The Protocol}
+\label{subsec:protocol}
+
+Though the ISO/IEC 14443A protocol is general, we will focus on a few key aspects that are relevant to our discussion. As a result, we will refer the reader to \cite{iso144433} for more details such as timing requirements.
+
+First of all, it is worth noting that each byte is {\bf ordered} from the Least Significant Bit (LSB) to the Most Significant Bit (MSB), and that each byte is followed by an {\bf odd parity bit}, meaning that an even number of high bits (ones) is followed by another high bit (one), whereas an odd number of ones is followed by a low bit (zero). For example, the byte 0x3F is encoded as $1111\ 1100\ 1$.
+
+The PCD signifies that it is waiting to read tags by repeatedly sending a {\bf REQA (0x26)} or a {\bf WUPA (0x52)}, where the ``A" signifies that type A protocol is used. The difference between the REQA request and the WUPA wake-up request is that the latter also wakes up PICCs that were previously asked to HALT. Unlike all other commands, they are sent using a {\em short frame} that only consists of 7 bits, and which does not include a parity bit. As a result, the REQA command (including the beginning and end transmission zero bits) is sent as the sequence of bits $0\ 0110\ 010\ 0$.
+
+The standard has also defined {\bf Anticollision} and {\bf Selection} phases before the transmission of actual data which are used to ensure the non-interference from multiple tags and the correct selection of the tag. However, we only discuss them in the context of the MIFARE cards in Appendix \ref{app:mifare}, since they are not necessary for understanding the rest of this report. 
+
+Finally, we mention that to detect errors with longer transmissions, for some requests and responses a {\bf Cyclic Redundancy Check (CRC)} is used on the transmitted bytes (but excluding start/end and parity bits). The polynomial used is $x^{16}+x^{12}+x^5+1$, with a starting value of 0x6363, under the assumption that ``FF0 shall be the leftmost flip-flop where data is shifted in  [and] FF15 shall be the rightmost flip-flop where data is shifted out" \cite{iso144433}. For example, the {\bf HALT/HLTA} command uses 2 bytes (0x50 0x00) followed by the two CRC bytes which can be calculated as 0x57 0xCD.
+
+\subsection{MIFARE Classic 1K Encryption}
+
+Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}, the MIFARE Classic 1K uses a proprietary cryptographic protocol called CRYPTO1 \cite{classic1k}. The details of the protocol were not made publicly available, with the MIFARE datasheets only broadly explaining the 3-pass protocol \cite{classic1k}. Each {\bf sector} (equal to 4 {\bf blocks} of 16 bytes each) has two 6-byte keys ({\bf Key A and B}), which on delivery are set to [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF] (but can be changed later on a per-sector basis). Each authentication happens with one of the two keys chosen by the reader, and can only be used to access a specific sector. The memory layout for a Classic 1K card is shown in Figure \ref{fig:memory}, and shows that each sector contains one block (the {\bf sector trailer}) which contains the two keys and some {\bf access bits} which determine the allowed operations for the 4 blocks (See Appendix \ref{app:mifare} for more details).
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/memory.png}
+  \caption{MIFARE Classic 1K Memory Layout \cite{classic1k}}
+  \label{fig:memory}
+\end{figure}
+
+
+The PCD indicates to the PICC that it wants to authenticate through a command indicating which key to be used and what address to use. As shown in Figures \ref{fig:auth1} and \ref{fig:auth2}, the three-pass scheme consists of a 4 byte challenge sent from the PICC to the PCD  (Token RB), an 8-byte challenge and response (of 4 bytes each) send from the PCD to the PICC (Token AB) and a response from the PICC to the PCD (Token BA), if the reader's encryption was correct. After the first challenge (Token RB), {\bf all} traffic is encrypted, even subsequent authentications, which leads to a weakness known as {\bf nested authentication} \cite{classicvulnerabilities}.
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/auth1.png}
+  \caption{First Part of Authentication \cite{classic1k}}
+  \label{fig:auth1}
+\end{figure}
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/auth2.png}
+  \caption{Second Part of Authentication \cite{classic1k}}
+  \label{fig:auth2}
+\end{figure}
+
+Though we discuss the encryption algorithm in greater detail in Appendix \ref{app:crypto1}, it is worth noting a few things based on the research in \cite{crypto1, classicvulnerabilities}. The CRYPTO1 encryption scheme is a stream cipher which consists of a 48-bit (equal to the key length) Linear Feedback Shift Register (LFSR) and a non-linear {\bf filter} function \cite{crypto1}. The encryption incorporates both the tag's Unique Identifier (UID) and the random nonce RB, which however is only generated using a 16-bit LFSR. Nonetheless, both challenge responses only depend on the tag's nonce (and not the reader's nonce or the UID), and use the same LFSR as the Random Number Generator (RNG). 
+
+What is more, the parity bits are also encrypted (making the MIFARE Classic 1K {\em incompatible} with the ISO 14443 protocol), and ``the bit of keystream used to encypt the parity bits is reused to encrypt the next bit of plaintext" \cite{classicvulnerabilities}. This vulnerability, in combination with the nested authentication mentioned above (which causes the token RB to also be encrypted) leaks data which can be used to guess the nonce or to reveal the secret key.
 
 
 
@@ -117,6 +251,53 @@ I would like to thank Kasper Rasmussen for being my supervisor, for his invaluab
 \phantomsection
 \bibliographystyle{acm}
 \bibliography{bibliography}
+
+%----------------------------------------------------------------------------------------
+%	APPENDIX
+%----------------------------------------------------------------------------------------
+
+\onecolumn
+\appendix
+\section*{Appendices}
+\renewcommand{\thesubsection}{\Alph{subsection}}
+\subsection{MIFARE Commands}
+\label{app:mifare}
+
+
+\subsection{CRYPTO1}
+\label{app:crypto1}
+
+As mentioned in Section \ref{sec:related}, researchers were able to reverse-engineer the protocol \cite{crypto1, classicvulnerabilities}, and we summarize their findings here. Specifically, in the notation of \cite{classicvulnerabilities}, let the (unencrypted) nonce RB be denoted by $n_T$, the token AB be denoted as $\{n_R\},\{a_R\}$ and the token BA be denoted as $\{a_T\}$. Also denote by $k$ the key, $u$ the tag's unique identifier (UID), and for any $x$, let $x_i$ be its $i$-th bit (for $i$ for which this is well-defined). The CRYPTO1 algorithm uses a Linear Feedback Shift Register (LFSR) of size equal to 48 bits which is initialized by the key (also of length 48). Thus, as $\alpha_i=a_i a_{i+1}\ldots a_{i+47}$ the internal state of the LFSR at time $i$, we get that:
+
+\begin{itemize}[nosep]
+\item $a_i := k_i$, for $0\le i \le 47$
+\item $a_{48+i} := L(a_i,\ldots,a_{47+i}) \oplus n_{T,i} \oplus u_i$, for $0 \le i \le 31$
+\item $a_{80+i} := L(a_{32+i},\ldots,a_{79+i}) \oplus n_{R,i}$, for $0 \le i \le 31$
+\item $a_{112+i} := L(a_{64+i},\ldots,a_{111+i})$, $\forall i \in \mathbb{N}$
+\end{itemize}
+where $L$ is the LFSR ``{\bf feedback function}" defined by:
+
+\noindent $L(x_0x_1\ldots x_{47}):=x_{0} \oplus x_{5} \oplus x_{9} \oplus x_{10} \oplus x_{12} \oplus x_{14} \oplus x_{15} \oplus x_{17} \oplus x_{19} \oplus x_{24} \oplus x_{25} \oplus x_{27} \oplus x_{29} \oplus x_{35} \oplus x_{39} \oplus x_{41} \oplus x_{42} \oplus x_{43}$
+
+
+The outputs are encrypted using a ``{\bf filter function}":
+
+\noindent $f(x_0x_1\ldots x_{47}) := f_c(f_a(x_9,x_{11},x_{13},x_{15}),f_b(x_{17},x_{19},x_{21},x_{23}),f_b(x_{25},x_{27},x_{29},x_{31}),f_a(x_{33},x_{35},x_{37},x_{39}),f_b(x_{41},x_{43},x_{45},x_{47}))$, where 
+\begin{align}
+\nonumber f_a(y_0,y_1,y_2,y_3):=&((y_0 \vee y_1) \oplus (y_0 \wedge y_3)) \oplus (y_2 \wedge ((y_0 \oplus y_1) \vee y_3)) &\\
+\nonumber f_b(y_0,y_1,y_2,y_3):=&((y_0\wedge y_1) \vee y_2) \oplus ((y_o \oplus y_1) \wedge (y_2 \vee y_3)) &\\
+\nonumber f_c(y_0,y_1,y_2,y_3,y_4):=&(y_0 \vee ((y_1 \vee y_4) \wedge (y_3 \oplus y_4))) \oplus ((y_0 \oplus (y_1 \wedge y_3)) \wedge ((y_2 \oplus y_3) \vee (y_1 \wedge y_4))) &
+\end{align}
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/lfsr.png}
+  \caption{Crypto1 LFSR \cite{classicvulnerabilities}}
+  \label{fig:lfsr}
+\end{figure}
+
+
+\subsection{Example Traces}
 
 
 
