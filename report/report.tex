@@ -2,6 +2,7 @@
 %	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
 %----------------------------------------------------------------------------------------
 
+
 \documentclass[fleqn,10pt]{SelfArx} % Document font size and equations flushed left
 
 %----------------------------------------------------------------------------------------
@@ -16,6 +17,7 @@
 %	COLORS
 %----------------------------------------------------------------------------------------
 
+\usepackage[table,xcdraw]{xcolor} % For colored tables. Also NECESSARY for .cls
 \definecolor{color1}{RGB}{0,0,90} % Color of the article title and sections
 \definecolor{color2}{RGB}{0,20,20} % Color of the boxes behind the abstract and headings
 
@@ -42,9 +44,10 @@
 \newcommand{\keywordname}{Keywords} % Defines the keywords heading name
 
 %----------------------------------------------------------------------------------------
-%	OTHER
+%	DEFINITIONS AND OTHER PACKAGES
 %----------------------------------------------------------------------------------------
 
+ \usepackage{subcaption}
 \newcommand{\ms}{\ensuremath{\mu s} }
 
 %----------------------------------------------------------------------------------------
@@ -207,13 +210,7 @@ Finally, we mention that to detect errors with longer transmissions, for some re
 
 \subsection{MIFARE Classic 1K Encryption}
 
-Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}, the MIFARE Classic 1K uses a proprietary cryptographic protocol called CRYPTO1 \cite{classic1k}. The details of the protocol were not made publicly available, with the MIFARE datasheets only broadly explaining the 3-pass protocol \cite{classic1k}. Each {\bf sector} (equal to 4 {\bf blocks} of 16 bytes each) has two 6-byte keys ({\bf Key A and B}), which on delivery are set to [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF] (but can be changed later on a per-sector basis). Each authentication happens with one of the two keys chosen by the reader, and can only be used to access a specific sector. The memory layout for a Classic 1K card is shown in Figure \ref{fig:memory}, and shows that each sector contains one block (the {\bf sector trailer}) which contains the two keys and some {\bf access bits} which determine the allowed operations for the 4 blocks (See Appendix \ref{app:mifare} for more details).
-
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/memory.png}
-  \caption{MIFARE Classic 1K Memory Layout \cite{classic1k}}
-  \label{fig:memory}
-\end{figure}
+Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}, the MIFARE Classic 1K uses a proprietary cryptographic protocol called CRYPTO1 \cite{classic1k}. The details of the protocol were not made publicly available, with the MIFARE datasheets only broadly explaining the 3-pass protocol \cite{classic1k}. Each {\bf sector} (equal to 4 {\bf blocks} of 16 bytes each) has two 6-byte keys ({\bf Key A and B}), which on delivery are set to [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF] (but can be changed later on a per-sector basis). Each authentication happens with one of the two keys chosen by the reader, and can only be used to access a specific sector. Each sector contains one block (the {\bf sector trailer}) which contains the two keys and some {\bf access bits} which determine the allowed operations for the 4 blocks (See Appendix \ref{app:classic1k} for more details).
 
 
 The PCD indicates to the PICC that it wants to authenticate through a command indicating which key to be used and what address to use. As shown in Figures \ref{fig:auth1} and \ref{fig:auth2}, the three-pass scheme consists of a 4 byte challenge sent from the PICC to the PCD  (Token RB), an 8-byte challenge and response (of 4 bytes each) send from the PCD to the PICC (Token AB) and a response from the PICC to the PCD (Token BA), if the reader's encryption was correct. After the first challenge (Token RB), {\bf all} traffic is encrypted, even subsequent authentications, which leads to a weakness known as {\bf nested authentication} \cite{classicvulnerabilities}.
@@ -233,6 +230,7 @@ The PCD indicates to the PICC that it wants to authenticate through a command in
 Though we discuss the encryption algorithm in greater detail in Appendix \ref{app:crypto1}, it is worth noting a few things based on the research in \cite{crypto1, classicvulnerabilities}. The CRYPTO1 encryption scheme is a stream cipher which consists of a 48-bit (equal to the key length) Linear Feedback Shift Register (LFSR) and a non-linear {\bf filter} function \cite{crypto1}. The encryption incorporates both the tag's Unique Identifier (UID) and the random nonce RB, which however is only generated using a 16-bit LFSR. Nonetheless, both challenge responses only depend on the tag's nonce (and not the reader's nonce or the UID), and use the same LFSR as the Random Number Generator (RNG). 
 
 What is more, the parity bits are also encrypted (making the MIFARE Classic 1K {\em incompatible} with the ISO 14443 protocol), and ``the bit of keystream used to encypt the parity bits is reused to encrypt the next bit of plaintext" \cite{classicvulnerabilities}. This vulnerability, in combination with the nested authentication mentioned above (which causes the token RB to also be encrypted) leaks data which can be used to guess the nonce or to reveal the secret key.
+
 
 
 
@@ -260,14 +258,148 @@ I would like to thank Kasper Rasmussen for being my supervisor, for his invaluab
 \appendix
 \section*{Appendices}
 \renewcommand{\thesubsection}{\Alph{subsection}}
-\subsection{MIFARE Commands}
+\subsection{MIFARE Cards}
 \label{app:mifare}
+In this section, we focus on the MIFARE Ultralight and Classic 1K cards, with more general ISO details in \cite{iso144433}.
+
+\subsubsection{MIFARE Ultralight \cite{ultralight}}
+\label{app:ultralight}
+
+The memory layout for a MIFARE Ultralight card can be found in Figure \ref{fig:memul}. The card has a 7-byte UID SN[0-6], including 2 check bytes BCC[0-1]. SN0 is the manufacturer ID (0x04 for NXP Semiconductors), and the check bytes are defined as follows: $BCC0=0x88 \oplus SN0 \oplus SN1 \oplus SN2$ and $BCC1 = SN3 \oplus SN4 \oplus SN5 \oplus SN6$. Lock bytes can be used to turn pages into read-only mode, while One-Time Pad (OTP) bytes can be set to 1, but never set back to 0 again. As can be seen in Figure \ref{fig:fsmul}, Ultralight cards go through 2 rounds of ANTICOLLISION and SELECT commands.
 
 
+\begin{figure}[h]
+\centering
+\begin{minipage}[b]{.47\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/fsmul.png}
+  \captionof{figure}{MIFARE Ultralight FSM}
+  \label{fig:fsmul}
+\end{minipage}
+\begin{minipage}[b]{.47\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/memul.png}
+  \captionof{figure}{MIFARE Ultralight Memory Layout}
+  \label{fig:memul}
+\end{minipage}
+\end{figure}
+
+\noindent Table \ref{tab:cmdul} shows the possible commands when communicating with a MIFARE Ultralight card. The address for the READ and WRITE commands are between 0x00 and 0x0F and include roll-over  C[0-1] is the CRC, and D[0-15] refers to data bytes.
+
+\begin{table}[h]
+\centering
+\caption{MIFARE Ultralight Commands}
+\label{tab:cmdul}
+\begin{tabular}{|l|l|l|}
+\hline
+\rowcolor[HTML]{E2F1F3} 
+{\bf Command} 		&     {\bf Code} 						&    {\bf Response} 		\\ \hline
+REQA 				&     0x26      						&    0x44  0x00 (ATQA) 		\\ \hline
+WUPA 			&     0x52      						&    0x44  0x00 (ATQA) 		\\ \hline
+ANTICOLLISION (1)  	&     0x93 0x[20-67]     					&    0x88 SN0 SN1 SN2 BCC0       	\\ \hline
+SELECT (1) 			&     0x93 0x70 0x88 SN0 SN1 SN2 BCC0 C0 C1       	&    0x04 C0 C1			\\ \hline
+ANTICOLLISION (2)		&     0x95 0x[20-67]				       	&    SN3 SN4 SN5 SN6 BCC1        	\\ \hline
+SELECT (2) 			&     0x95 0x70 SN3 SN4 SN5 SN6 BCC1 C0 C1       	&    0x00 C0 C1			\\ \hline
+READ 				&     0x30 [Addr] C0 C1					&    D0 D1 $\cdots$ D15 C0 C1    	\\ \hline
+WRITE 			&     0xA2 [Addr] D0 D1 D2 D3 C0 C1       		&   [ACK/NAK]		         	\\ \hline
+COMPATIBILITY WRITE (1)&     0xA0 [Addr] C0 C1 					&   [ACK/NAK]			\\ \hline
+COMPATIBILITY WRITE (2)&     D0 D1 $\cdots$ D15 C0 C1				&   [ACK/NAK]			\\ \hline
+HALT				&     0x50 0x00 C0 C1				       	&   [passive ACK/NAK]             	\\ \hline
+\end{tabular}
+\end{table}
+
+\newpage
+\subsubsection{MIFARE Classic 1K \cite{classic1k}}
+\label{app:classic1k}
+
+The memory layout for Classic 1K cards can be seen in Figure \ref{fig:mem1k}. The card does not have a globally-unique identifier, but instead uses a 4-byte Non-Unique Identifier (NUID) in block 0. Each sector has a block called the ``trailer", which contains the two keys and the access bits. The layout for these access bits is shown in Figure \ref{fig:access}, where $CX_y$ is the $X$'th access bit for block $y$. These access bits are interpreted differently based on whether the block is a trailer block (Figure \ref{fig:trailer}) or a data block (Figure \ref{fig:data}).
+
+\begin{figure}[h]
+\centering
+\begin{minipage}[b]{.47\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/mem1k.png}
+  \captionof{figure}{MIFARE Classic 1K Memory Layout}
+  \label{fig:mem1k}
+\end{minipage}
+\begin{minipage}[b]{.47\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/access.png}
+  \captionof{figure}{MIFARE Classic 1K Access Bits}
+  \label{fig:access}
+\end{minipage}
+\end{figure}
+
+
+
+\begin{figure}[h]
+\centering
+\begin{minipage}[b]{.47\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/trailer.png}
+  \captionof{figure}{Trailer Block Access Conditions}
+  \label{fig:trailer}
+\end{minipage}
+\begin{minipage}[b]{.47\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/data.png}
+  \captionof{figure}{Data Block Access Conditions}
+  \label{fig:data}
+\end{minipage}
+\end{figure}
+
+It is worth noting that the data blocks can be used for simple read/write operations, or they can be used as ``value blocks" for applications which need more robustness and backups and could benefit from operations like INCREMENT and DECREMENT (see below). The layout for such blocks is shown in Figure \ref{fig:value}.
+
+\begin{figure}[h]
+  \hfill\includegraphics[width=0.7\linewidth]{img/value.png} \hspace*{\fill}
+  \caption{Value Block Layout}
+  \label{fig:value}
+\end{figure}
+
+\noindent As indicated in Figure \ref{fig:fsm1k}, the Classic 1K only uses a single round of ANTICOLLISION and SELECT commands, but includes a much more complicated 3-pass authentication mechanism. We explain in detail the encryption scheme in Appendix \ref{app:crypto1}, but we include the un-encrypted commands in Table \ref{tab:cmd1k}, where NID[0-3] represents the NUID and $BCC=NID0 \oplus NID1 \oplus NID2 \oplus NID3$. Addresses range from 0x00 to 0x3F, while C[0-1] refers to the Checksum and D[0-15] to data bytes.
+
+\begin{figure}[ht]
+ \hfill
+  \includegraphics[height=7cm,keepaspectratio]{img/fsm1k.png}
+ \hspace*{\fill}
+  \caption{Classic 1K FSM}
+  \label{fig:fsm1k}
+\end{figure}
+
+
+
+\begin{table}[ht]
+\centering
+\caption{MIFARE CLASSIC 1K Plaintext Commands}
+\label{tab:cmd1k}
+\begin{tabular}{|l|l|l|}
+\hline
+\rowcolor[HTML]{E2F1F3} 
+{\bf Command} 		&     {\bf Code} 						&    {\bf Response} 		\\ \hline
+REQA 				&     0x26      						&    0x04  0x00 (ATQA) 		\\ \hline
+WUPA 			&     0x52      						&    0x04  0x00 (ATQA) 		\\ \hline
+ANTICOLLISION	  	&     0x93 0x20     						&    NID0 NID1 NID2 NID3 BCC   	\\ \hline
+SELECT  			&     0x93 0x70  NID0 NID1 NID2 NID3 BCC C0 C1  	&    0x08 C0 C1			\\ \hline
+AUTHA			&     0x60 [Addr] C0 C1					&    D0 D1 D2 D3  [TOKEN RB]    	\\ \hline
+AUTHB			&     0x61 [Addr] C0 C1					&    D0 D1 D2 D3  [TOKEN RB]	\\ \hline
+AUTH3 [TOKEN AB]		&     D0 D1 $\cdots$ D7					&    D0 D1 D2 D3  [TOKEN BA]	\\ \hline
+READ 				&     0x30 [Addr] C0 C1					&    D0 D1 $\cdots$ D15 C0 C1    	\\ \hline
+WRITE (1)			&     0xA0 [Addr] C0 C1 					&   [ACK/NAK]			\\ \hline
+WRITE (2)			&     D0 D1 $\cdots$ D15 C0 C1				&   [ACK/NAK]			\\ \hline
+INCREMENT (1)		&     0xC1 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
+DECREMENT (1)		&     0xC0 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
+RESTORE (1)			&     0xC2 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
+INC/DEC/RES (2)		&     D0 D1 $\cdots$ D15 C0 C1				&   [passive ACK/NAK]		\\ \hline
+TRANSFER			&     0xB0 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
+HALT				&     0x50 0x00 C0 C1				       	&   [passive ACK/NAK]             	\\ \hline
+\end{tabular}
+\end{table}
+
+\newpage
 \subsection{CRYPTO1}
 \label{app:crypto1}
 
-As mentioned in Section \ref{sec:related}, researchers were able to reverse-engineer the protocol \cite{crypto1, classicvulnerabilities}, and we summarize their findings here. Specifically, in the notation of \cite{classicvulnerabilities}, let the (unencrypted) nonce RB be denoted by $n_T$, the token AB be denoted as $\{n_R\},\{a_R\}$ and the token BA be denoted as $\{a_T\}$. Also denote by $k$ the key, $u$ the tag's unique identifier (UID), and for any $x$, let $x_i$ be its $i$-th bit (for $i$ for which this is well-defined). The CRYPTO1 algorithm uses a Linear Feedback Shift Register (LFSR) of size equal to 48 bits which is initialized by the key (also of length 48). Thus, as $\alpha_i=a_i a_{i+1}\ldots a_{i+47}$ the internal state of the LFSR at time $i$, we get that:
+In this section, we summarize the CRYPTO1 algorithm as reverse-engineered in \cite{crypto1, classicvulnerabilities}, but do not discuss the numerous vulnerabilities with the cipher which are addressed in the original papers. In the notation of \cite{classicvulnerabilities}, let the (unencrypted) nonce RB be denoted by $n_T$, the token AB be denoted as $\{n_R\},\{a_R\}$ and the token BA be denoted as $\{a_T\}$. Also denote by $k$ the key, $u$ the tag's unique identifier (UID), and for any $x$, let $x_i$ be its $i$-th bit (for $i$ for which this is well-defined). The CRYPTO1 algorithm uses a Linear Feedback Shift Register (LFSR) of size equal to 48 bits which is initialized by the key (also of length 48). Thus, as $\alpha_i=a_i a_{i+1}\ldots a_{i+47}$ the internal state of the LFSR at time $i$, we get that:
 
 \begin{itemize}[nosep]
 \item $a_i := k_i$, for $0\le i \le 47$
@@ -289,15 +421,22 @@ The outputs are encrypted using a ``{\bf filter function}":
 \nonumber f_c(y_0,y_1,y_2,y_3,y_4):=&(y_0 \vee ((y_1 \vee y_4) \wedge (y_3 \oplus y_4))) \oplus ((y_0 \oplus (y_1 \wedge y_3)) \wedge ((y_2 \oplus y_3) \vee (y_1 \wedge y_4))) &
 \end{align}
 
+These two main functions are summarized in Figure \ref{fig:lfsr}.
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/lfsr.png}
+  \hfill\includegraphics[width=\linewidth]{img/lfsr.png} \hspace*{\fill}
   \caption{Crypto1 LFSR \cite{classicvulnerabilities}}
   \label{fig:lfsr}
 \end{figure}
 
+The keystream bit $b_i$ is then defined by $b_i := f(a_i\ldots a_{47+i})$, and the encryptions of the $i$-th regular bit (i.e. excluding start/end and parity bits) is defined by XORing with $b_i$. Specifically, for $0\le i \le 31$, $\{n_{R,i}\}=n_{R,i} \oplus b_{32+i}$, $\{a_{R,i}\}=a_{R,i} \oplus b_{64+i}$, $\{a_{T,i}\}=a_{T,i} \oplus b_{96+i}$. Note that the first 32 bits are not used in the first authentication, but they are used in all subsequent authentications, as the tag nonce is encrypted (and the cipher is re-initialized), so that $\{n_{T,i}\}=n_{T,i} \oplus b_i$. 
 
-\subsection{Example Traces}
+The challenges only depend on the random nonce $n_T$, with $a_R=suc^{64}(n_T)$ and $a_T=suc^{96}(n_T)$, where the ``{\bf successor function}" (used for the Pseudo Random Number Generation (PRNG) is iteratively applied 64 and 96 times respectively. It is defined by $suc(x_0x_1\ldots x_{31}):=x_1x_2\ldots x_{31}(x_{16}\oplus x_{18}\oplus x_{19}\oplus x_{21}))$ which only depends on the last 16 bits of the input.
+
+
+It is worth noting that the start and ending transmission bits are not encrypted, but the parity bits are --- by reusing the encryption bit for the next bit to be encrypted: $\{p_j\} :=p_j \oplus b_{8j +8}$. This leaks information, and makes the protocol incompatible with the ISO standard, since the parity bits can be inverted. See Appendix \ref{app:traces} for an example.
+
+
 
 
 
