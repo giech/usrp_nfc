@@ -97,7 +97,7 @@ In this report, we describe a Software-Defined Radio (SDR) approach for eavesdro
 \section{Introduction}
 \label{sec:introduction}
 
-Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally (Section \ref{sec:related}), such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies, to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
+Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally, such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies  (Section \ref{sec:related}), to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
 
 
 To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wire that allows passive eavesdropping on reader-tag communication (whose protocols are explained in Section \ref{sec:background}). Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has ``a market share of more than 77\% in the transport ticketing industry", with ``150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{subsec:crypto1}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions (detailed in Section \ref{sec:implementation} and evaluated in Section \ref{sec:evaluation}) are as follows:
@@ -106,7 +106,7 @@ To this end, we developed such an implementation on an Ettus Research Universal 
 \item We implement in pure Software-Defined Radio a demodulator for NFC/RFID readers and tags operating in the 13.56 MHz frequency, which decodes radio waves into plaintext packets.
 \item We test our implementation by eavesdropping on real MIFARE Classic 1K and Ultralight communications with an RFID reader using a home-made antenna and a USRP, successfully decoding any encrypted packets.
 \item We additionally implement in software the emulation of both readers and tags, including encryption if necessary.
-\item Though our transmission capabilities cannot keep up with the strict timing requirements of the protocol, we show how our implementation can jam real reader-tag communications and prevent the successful transmission of data.
+\item Though our transmission capabilities cannot keep up with the NFC timing requirements, we show how our implementation can jam real reader-tag transmissions.
 \item Overall, our work shows that prototyping using Software-Defined Radio is sufficient in practice for passive attacks, without the need for extensive optimizations or heavy computing power.
 \end{enumerate}
 %----------------------------------------------------------------------------------------
@@ -135,11 +135,9 @@ Finally, given the widespread availability of NFC-enabled mobile devices, resear
 
 The terms Radio Frequency Identification (RFID), Near Field Communication (NFC), contactless smartcards, proximity cards and vicinity cards are often used interchangeably, but they are covered by different standards and concern different parts of the radio spectrum. In this project, we looked at the ISO/IEC 14443 standard, with physical characteristics defined in \cite{iso144431}, modulation and encoding in \cite{iso144432}, initialization and anticollision in \cite{iso144433} and transmission protocols in \cite{iso144434}.
 
-Specifically, we focus on {\bf Type A} communications, whose {\bf carrier frequency} is $f_c=13.56$ MHz. The reader -- or {\bf Proximity Coupling Device (PCD)} -- communicates with the card -- or {\bf Proximity Integrated Circuit Card (PICC)} -- through {\bf 100\% Amplitude Shift Keying (ASK)}, with data using the {\bf Modified Miller} encoding. The communication from tag to reader utilizes {\bf Load Modulation} with a {\bf subcarrier frequency} of $f_s=f_c/16=847.5$ kHz, using {\bf Manchester Encoding}, and both transmit at a rate of 106 kbit/s. 
+Specifically, we focus on {\bf Type A} communications, whose {\bf carrier frequency} is $f_c=13.56$ MHz. The reader -- or {\bf Proximity Coupling Device (PCD)} -- communicates with the card -- or {\bf Proximity Integrated Circuit Card (PICC)} -- through {\bf 100\% Amplitude Shift Keying (ASK)}, with data using the {\bf Modified Miller} encoding (Section \ref{subsec:pcd}). The communication from tag to reader utilizes {\bf Load Modulation} with a {\bf subcarrier frequency} of $f_s=f_c/16=847.5$ kHz, using {\bf Manchester} encoding (Section \ref{subsec:picc}), and both transmit 106 kbit/s. 
 
-Because the carrier frequency is $f_c=13.56$ MHz, the wavelength is $c/f_c\approx22$ meters, making it impossible to deploy antennas that would fit in a card-size form-factor. Additionally, because the cards are {\bf passive} (i.e. do not have their own power source), both the communication and the power source are achieved through {\bf inductive coupling} from the PCD's antenna loop to the PICC's antenna loop.  
-
-The PCD encoding is explained in Section \ref{subsec:pcd}, the PICC encoding in Section \ref{subsec:picc}, with the high-level protocol discussed in Section \ref{subsec:protocol}, and the MIFARE Classic encryption algorithm in Section \ref{subsec:crypto1}.
+Because the carrier frequency is $f_c=13.56$ MHz, the wavelength is $c/f_c\approx22$ meters, making it impossible to deploy antennas that would fit in a card-size form-factor. Additionally, because the cards are {\bf passive} (i.e. do not have their own power source), both the communication and the power source are achieved through {\bf inductive coupling} from the PCD's antenna loop to the PICC's antenna loop. We discuss the high-level protocol in Section \ref{subsec:protocol}, and the MIFARE Classic encryption algorithm in Section \ref{subsec:crypto1}.
 
 \subsection{PCD Transmissions}
 \label{subsec:pcd}
@@ -157,7 +155,7 @@ This is achieved through the Modified Miller Encoding, which ensures that there 
 \item A 1 is encoded as an unmodulated signal for $t_b/2\approx 4.72 \ms$, followed by a period of silence for 3\ms, followed by an unmodulated signal for $t_b/2-3\approx 1.72\ms$
 \item A 0 after a 0 is encoded as a silence period for 3\ms followed by an unmodulated signal for $t_b-3\approx 6.44\ms$
 \item A 0 after a 1 is encoded as an unmodulated signal for a period of $t_b\approx9.44\ms$
-\item To indicate the beginning and the end of a transmission, a logical 0 is used for both the start and the end
+\item To indicate the beginning and the end of a transmission, a 0 bit is inserted at both the start and the end
 \end{itemize}
 
 \begin{figure}[h]
@@ -184,7 +182,7 @@ In practice, however, because of hardware imperfections, the pause is not perfec
 \subsection{PICC Transmissions}
 \label{subsec:picc}
 
-As mentioned above, the tag does not have sufficient power for active transmissions. Consequently, the PICC achieves data transmission passively, by changing its {\em load}, which can be inferred as a voltage drop on the PCD, hence the term {\bf load modulation}. Switching the load generates a {\bf subcarrier}, which has a frequency $f_s=f_c/16=847.5$ kHz. 
+As mentioned above, the tag does not have sufficient power for active transmissions. Consequently, the PICC achieves data transmission passively, by changing its {\em load}, which can be inferred as a voltage drop on the PCD, hence the term {\bf Load Modulation}. Switching the load generates a {\bf subcarrier}, which has a frequency $f_s=f_c/16=847.5$ kHz. 
 
 The bits are then encoded using {\bf On-Off Keying (OOK)} or {\bf Manchester Encoding} as follows, with a total duration also equal to $t_b\approx9.44\ms$, which also equals 8 periods of the subcarrier, also shown in Figures \ref{fig:manchester} and \ref{fig:manchester2}:
 
@@ -231,13 +229,13 @@ The PCD indicates to the PICC that it wants to authenticate through a command in
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/auth1}
-  \caption{First Part of Authentication \cite{classic1k}}
+  \caption{Authentication Part 1 \cite{classic1k}}
   \label{fig:auth1}
 \end{figure}
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/auth2}
-  \caption{Second Part of Authentication \cite{classic1k}}
+  \caption{Authentication Part 2 \cite{classic1k}}
   \label{fig:auth2}
 \end{figure}
 
@@ -263,9 +261,7 @@ For this project, we used Ettus Research's Universal Software Radio Peripheral (
 For lack of a better alternative, the laptop used is a Samsung NP900X4C with an Intel i5-3317U @ 1.7 GHz and 8 GB of RAM, but the operating system used (Kali Linux 1.1.0a) was booted off a 16 GB USB 3.0 Lexar JumpDrive. Moreover, due to the lack of an Ethernet port, the USRP was connected to the laptop on a Plugable USB3-E1000 USB 3.0 Gigabit Ethernet Adapter.
 
 
-To measure signals accurately, we used a Rigol DS2302A digital oscilloscope with two 300 MHz channels \cite{rigol}. 
-
-The actual reader was an RFID-RC522 module using the MFRC522 chip by NXP Semiconductors \cite{mfrc522} connected to an Arduino UNO using the Serial Peripheral Interface (SPI) and the DumpInfo example at \cite{library}. A schematic is found in Figure \ref{fig:rc522schematic}, while Figure \ref{fig:rc522pic} is a picture of the module, where the test pad for the reception (RX) part of the antenna is highlighted.
+To measure signals accurately, we used a Rigol DS2302A digital oscilloscope with two 300 MHz channels \cite{rigol}. The actual reader was an RFID-RC522 module using the MFRC522 chip by NXP Semiconductors \cite{mfrc522} connected to an Arduino UNO using the Serial Peripheral Interface (SPI) and the DumpInfo example at \cite{library}. A schematic is found in Figure \ref{fig:rc522schematic}, while Figure \ref{fig:rc522pic} is a picture of the module, where the test pad for the reception (RX) part of the antenna is highlighted.
 
 
 \begin{figure}[h]
@@ -285,14 +281,14 @@ The types of tags/cards used are shown in Figure \ref{fig:cards} and are a Class
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/cards}
-  \caption{Cards/Tags used for the experiment}
+  \caption{Cards/Tags Used in the Experiment}
   \label{fig:cards}
 \end{figure}
 
 \subsection{The Antenna}
 \label{subsec:antenna}
 
-Much research has been conducted into making RFID-type antennas work well and with up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we made our own. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
+Much research has been conducted into making RFID-type antennas work well and up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we made our own. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
 
 \begin{equation}
 \label{eq:inductance}
@@ -336,18 +332,18 @@ Though we discuss the antenna more in Section \ref{sec:evaluation}, we mention h
 \subsection{Eavesdropping}
 \label{subsec:eavesdrop}
 
-For consistency/determinism, and easy testing/reproducibility, we initially recorded the interaction between the reader and the tag. This was achieved by using our home-made antenna connected to the USRP in the setup shown in Figure \ref{fig:setup}. The {\em envelope} of the signal is sufficient for our purposes, and for our Amplitude Modulated (AM) signal can be calculated as the absolute value of the signal. Recoding the envelope as a WAV file (using GNU Radio's \texttt{wavfile\_sink}) using a sample rate of $2,000,000$ samples/second and a 16-bit output, we get around 4 MB of data to be processed per second.
+For consistency/determinism, and easy testing/reproducibility, we initially recorded the interaction between the reader and the tag. This was achieved by using our home-made antenna connected to the USRP in the setup of Figure \ref{fig:setup}. The {\em envelope} of the signal is sufficient for our purposes, and for our Amplitude Modulated (AM) signal can be calculated as the absolute value of the signal. Recoding the envelope as a WAV file (using GNU Radio's \texttt{wavfile\_sink}) using a sample rate of $2,000,000$ samples/second and a 16-bit output, we get around 4 MB of data to be processed per second.
 
 Opening the resulting audio file in Audacity Audio Editor, we see that for PCD transmissions the signal drops close to 0, while for PICC transmissions the subcarrier spikes hover at about 5-10\% above the average. An annotated example of the REQA and ATQA transmissions is shown in Figure \ref{fig:annotated}, where start/end and parity bits are shown in red. 
 
 
-Consequently, we can detect such transitions by having a moving window (say of length $2,000$) that keeps track of the average, and if the next value is below a certain threshold ($10\%$ of the average), consider it part of a reader transmission, and if it goes above a different threshold ($110\%$ of the average), consider it part of a card transmission. The transmission is considered over when the signal has returned to its average values for too long (currently $>25\ms$), and to ensure that the average does not drift, values above the high threshold and below the low threshold are not included in the moving average. The duration and values of these transitions are then passed on to the appropriate decoders through callbacks, so that the decoding runs in a background thread.
+Consequently, we can detect such transitions by having a moving window (say of length $2,000$) that keeps track of the average, and if the next value is below the {\em low} threshold ($10\%$ of the average), it is considered part of the reader transmission, and if it goes above the {\em high} threshold ($110\%$ of the average), a part of the card transmission. The transmission is considered over when the signal has returned to its average values for too long (currently $>25\ms$), and to ensure that the average does not drift, values above the high threshold and below the low threshold are not included in the moving average. The duration and values of these transitions are then passed on to the appropriate decoders through callbacks, so that the decoding runs in a background thread.
 
-The two decoders (one for Manchester encoding, and the other for the Modified Miller Encoding) are essentially Finite State Machines (FSM) that implement the specifications mentioned in Sections \ref{subsec:pcd} and \ref{subsec:picc}, allowing for some margin of transmission and measurement errors. For instance, the sequence $[(0, 3), (1, 11), (0, 3), (1, 16), (0, 3), (1, 6)]$ of (bit, \ms duration) pairs would be (approximately) split as:
+The two decoders (one for Manchester Encoding, and the other for the Modified Miller Encoding) are essentially Finite State Machines (FSM) that implement the specifications mentioned in Sections \ref{subsec:pcd} and \ref{subsec:picc}, allowing for some margin of transmission and measurement errors. For instance, the sequence $[(0, 3), (1, 11), (0, 3), (1, 16), (0, 3), (1, 6)]$ of PCD (bit, \ms duration) pairs would be (approximately) split as:
 
 \begin{align}
 \nonumber [(0, 3), (1, 6.5)] \rightarrow& 0&\\
-\nonumber [(4.5, 1), (0, 3), (1, 1.5)]\rightarrow & 1&\\
+\nonumber [(1, 4.5), (0, 3), (1, 1.5)]\rightarrow & 1&\\
 \nonumber [(1, 9.5)] \rightarrow & 0 &\\
 \nonumber [(1, 5), (0, 3), (1, 1.5)] \rightarrow & 1 &\\
 \nonumber  (1, 4.5) \rightarrow & \text{state=ONE\_FIRST\_STAGE} &
@@ -355,20 +351,7 @@ The two decoders (one for Manchester encoding, and the other for the Modified Mi
 
 Having recovered all the bits (including parity, but discarding any start/end bits), and knowing whether the PCD or the PICC is doing the transmission, these bits can be interpreted with context in a more high-level FSM. This is the code that updates the internal state of the tag/reader when needed (e.g. to decrypt bits in the MIFARE Classic case), ensures that the parity is correct and transforms bits into bytes, and then based on the current state and the ``header" of the incoming bytes determines the command issued, interprets the bytes and checks any CRC if necessary. 
 
-For unencrypted commands, this process is not crucial,\footnote{Indeed, the code will just print the plaintext bytes in case it cannot interpret them.} but for the Classic 1K, parsing the commands to get the UID, for instance, is of utmost importance as any deviations would result in ciphertext that cannot by decrypted. Specifically for regular data transmission decryption is straightforward, but the setup phase of the challenge-response protocol needs to be handled more subtly, especially because of nested authentications after the first authentication. Hence, while the actual cipher is abstracted away into a different class, it is the responsibility of the FSM to correctly call it.
-
-\subsection{Emulating}
-\label{subsec:emulate}
-
-The FSM proved to be an important abstraction for the emulation part of the project because it centralized also encryption considerations. As a result, the emulated Reader and Tag only deal with plaintext messages (and not individual bits). Specifically, the Reader is set to perform identically to the Arduino's DumpInfo program, by performing the anticollision, and then reading all card blocks. The Tag is programmed to respond to the incoming commands, and its memory layout is set dynamically through files. For reproducibility (and especially when emulating the tag against a recording), the randomness used by the Tag and the Reader can also be fixed, but they can also be generated on-the-fly as needed, ensuring that this is not merely a replay attack.
-
-Because of this setup, it is possible to emulate both the reader and the tag simultaneously, without needing to go through encoding and modulation, but we have also coded the Manchester and Modified Miller encodings (in a reverse fashion to Section \ref{subsec:eavesdrop}), as well as modulation, which can be output to a WAV file for use without a USRP.
-
-Modulating the Reader's output is straightforward: it is enough to generate a 13.56 MHz (sine wave) carrier and output it, or output nothing for the ``pause" duration. Load Modulation of the Tag is more complicated, and is achieved by only outputting when the encoding is a logical 1 (for either 4.5\ms or 9\ms). Specifically, however, and as explained in Section \ref{subsec:picc} (Figure \ref{fig:manchester}), this is achieved by generating a 847.5 kHz subcarrier, multiplying by the bit to output, and the switching the load (in this case through the transistor) only for the amount of time for which the signal is positive.
-
-%----------------------------------------------------------------------------------------
-%	EVALUATION
-%----------------------------------------------------------------------------------------
+For unencrypted commands, this process is not crucial,\footnote{The code will just print the plaintext bytes for unknown commands.} but for the Classic 1K, parsing the commands to get the UID, for instance, is of utmost importance as any deviations would result in ciphertext that cannot by decrypted. Specifically for regular data transmission decryption is straightforward, but the setup phase of the challenge-response protocol needs to be handled more subtly, especially because of nested authentications after the first authentication. Hence, while the actual cipher is abstracted away into a different class, it is the responsibility of the FSM to correctly call it.
 
 
 %%%%  FOR NEXT SECTION
@@ -386,6 +369,20 @@ Modulating the Reader's output is straightforward: it is enough to generate a 13
 \end{figure*}
 
 
+\subsection{Emulating}
+\label{subsec:emulate}
+
+The FSM proved to be an important abstraction for the emulation part of the project because it centralized all encryption considerations. As a result, the emulated Reader and Tag only deal with plaintext messages (and not individual bits). Specifically, the Reader is set to perform identically to the Arduino's \texttt{DumpInfo} program, by performing the anticollision, and then reading all card blocks. The Tag is programmed to respond to the incoming commands, and its memory layout is set dynamically through files. For reproducibility (and especially when emulating the tag against a recording), the randomness used by the Tag and the Reader can also be fixed, but it can also be generated on-the-fly as needed, ensuring that this is not merely a replay attack.
+
+Because of this setup, it is possible to emulate both the reader and the tag simultaneously, without needing to go through encoding and modulation, but we have also coded the Manchester and Modified Miller encodings (in a reverse fashion to Section \ref{subsec:eavesdrop}), as well as modulation, so that they can be output to a WAV file for use without a USRP.
+
+Modulating the Reader's output is straightforward: it is enough to generate a 13.56 MHz (sine wave) carrier and output it, or output nothing for the ``pause" duration. Load Modulation of the Tag is more complicated, and is achieved by only outputting when the encoding is a logical 1 (for either 4.5\ms or 9$\mu s$). Specifically, however, and as explained in Section \ref{subsec:picc} (Figure \ref{fig:manchester}), this is achieved by generating a 847.5 kHz subcarrier, multiplying by the bit to output, and then switching the load (in this case through the transistor) only for the amount of time for which the signal is positive.
+
+%----------------------------------------------------------------------------------------
+%	EVALUATION
+%----------------------------------------------------------------------------------------
+
+
 \section{Evaluation}
 \label{sec:evaluation}
 
@@ -394,26 +391,28 @@ In this section, we take a critical look at our approach for eavesdropping (Sect
 \subsection{Eavesdropping}
 \label{subsec:evaleavesdrop}
 
-First of all, it is worth mentioning that with recorded reader-tag communications, the eavesdropping code behaves predictably and always correctly decodes the messages. However, at least initially the code required 50 seconds of processing per 1 second of data. This was due to the fact that incoming messages in GNU Radio Python code are stored as \texttt{NumPy} arrays which do not support efficient iteration. Converting them to a list before iteration resulted in a $10\times$ improvement, and assigning local names to function calls resulted in an additional $2.5\times$ improvement, for a processing cost of about 2.2 seconds per 1 second of data.
+First of all, it is worth mentioning that with recorded reader-tag communications, the eavesdropping code behaves predictably and always correctly decodes the messages. However, at least initially, the code required 50 seconds of processing per 1 second of data. This was due to the fact that incoming messages in GNU Radio Python code are stored as \texttt{NumPy} arrays which do not support efficient iteration. Converting them to a list before iteration resulted in a $10\times$ improvement, and assigning local names to function calls resulted in an additional $2.5\times$ improvement, for a processing cost of about 2.2 seconds per 1 second of data. This is still not real time, but given the unusual setup which relies heavily on the USB bus, this performance is acceptable given the convenience of prototyping in Python. 
 
-This is still not real time, but given the unusual setup which relies heavily on the USB bus, this performance is acceptable given the convenience Python presents for prototyping. That said, the setup could have substantially benefited from a more fine-tuned antenna. As mentioned in Section \ref{subsec:antenna}, the range was only a couple of centimeters, and this was certainly not improved by the lack of a proper connecting cable and shielding. 
+That said, the setup could have substantially benefited from a more fine-tuned antenna. As mentioned in Section \ref{subsec:antenna}, the range was only a couple of centimeters, and this was certainly not improved by the lack of a proper connecting cable and shielding. In the Do-It-Yourself (DIY) spirit, we also attempted to create an amplifier (which would not be a Low-Noise) based on the design in \cite{amplifier} with a couple of minor resistance modifications to make it work with 9V. However, the modifications did not quite work, but instead resulted in signal distortion as shown in Figure \ref{fig:amplified}.
 
-In the Do-It-Yourself (DIY) spirit, we also attempted to create an amplifier (which unfortunately would not be a Low-Noise Amplifier) based on the design in \cite{amplifier} with a couple of minor resistance modifications to make it work with 9V. However, the modifications did no quite work, but instead resulted in signal distortion as shown in Figure \ref{fig:amplified}.
+
+
+This setback thus necessitated our setup (Figure \ref{fig:setup}) where the PCD, the PICC, and our antenna are in close proximity. However, we also tested a more ``real-world" situation, where the user approaches the reader with the tag. This is shown in Figure \ref{fig:usrpreal}, where the signal strength drops when the tag starts approaching the reader (due to their coupling). As can be seen, the signal strength is not sufficient to recover the tag's transmission during the anticollision and selection phases, but it can recover them after the first READ request. This would be insufficient for MIFARE Classic cards, but it does result in partial recovery for the Ultralight card.
+
+It is worth pointing out that the Reader commands are fully decoded even during the signal strength changes. This remains true and is even more pronounced in Figure \ref{fig:usrpreset}, where the Arduino is reset (but the tag remains close to the reader). The moving average methodology, then, works well, and we have included a couple of example traces decoded in Appendix \ref{app:traces} for reference and completeness.
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/amplified}
-  \caption{Failed Amplification: Original in Yellow and ``Amplified" in Blue}
+  \caption{Original in Yellow and ``Amplified" in Blue}
   \label{fig:amplified}
 \end{figure}
-
-This setback thus necessitated the setup shown in Figure \ref{fig:setup} where the PCD, the PICC, and our antenna are in close proximity. However, we also tested a more ``real-world" situation, where the user approaches the reader with the tag. This is shown in Figure \ref{fig:usrpreal}, where the signal strength drops when the tag starts approaching reader (due to their coupling --- indicated by red). As can be seen, the signal strength is not sufficient to recover the tag's transmission during the anticollision and selection phases, but it is can recover them after the first READ request. This would be insufficient for MIFARE Classic cards, but it does result in partial recovery for the Ultralight card.
-
-It is worth pointing out that the Reader commands are fully decoded even during the signal strength changes. This is remains true and is even more pronounced in Figure \ref{fig:usrpreset}, where the Arduino is reset (but the tag remains close to the reader). The moving average methodology, then, works well, and we have included a couple of example traces received in Appendix \ref{app:traces} for reference and completeness.
 
 \subsection{Emulating}
 \label{subsec:evalemulate}
 
-There is not much to say about software emulation (either of both reader and tag, or of one of them against a recorded WAV file), except that it works, but does not adhere to the ISO and MIFARE timing requirements. Specifically, due to the fact that the signal processing is not real-time, it did not seem prudent to focus on clock recovery/synchronization and implementing timeouts, as it would be impossible to test them within the confines of our system.
+The software emulation (either of both reader and tag, or of one of them against a recorded WAV file), was proven to work both by checking the plaintext output, and by running the output WAV file of the emulation through the eavesdropping code to recover the transmission. However, the emulation does not adhere to the ISO and MIFARE timing requirements. Specifically, since the signal processing is not real-time, it did not seem prudent to focus on clock recovery/synchronization and implementing timeouts, as it would be impossible to test them within the confines of our setup.
+
+However, this makes it harder to test the transmissions against real hardware. Testing the reader emulation is somewhat easier because the reader generates its own carrier. Specifically, as shown in Figure \ref{fig:emulated}, the emulated signal closely resembles the signal of a real reader (Figure \ref{fig:real}). Moreover, as shown in Figure \ref{fig:readertx}, we see in yellow that the USRP signal sent is not particularly strong, and the reception on the (unpowered) RC522 reader antenna in blue already indicates a strength drop due to our untuned transmissions.
 
 
 \begin{figure}[h]
@@ -432,9 +431,6 @@ There is not much to say about software emulation (either of both reader and tag
 \end{minipage}
 \end{figure}
 
-However, this makes it harder to test the transmissions against real hardware. Testing the reader emulation is somewhat easier because the reader generate its own carrier. Specifically, as shown in Figure \ref{fig:emulated}, the emulated signal closely resembles the signal of a real reader (Figure \ref{fig:real}). Moreover, as shown in figure \ref{fig:readertx}, we see in yellow that the USRP signal sent is not particularly strong, and the reception on the (unpowered) RC522 reader antenna in blue already indicates a strength drop due to our untuned transmissions.
-
-
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/readertx}
   \caption{Reader TX in Yellow, RC522 Antenna in Blue}
@@ -442,7 +438,7 @@ However, this makes it harder to test the transmissions against real hardware. T
 \end{figure}
 
 
-The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so we had to up the frequency to 13.56 MHz. The behavior of the signal strength is similar to the Reader TX (Figure \ref{fig:tagtx}), but it is unclear why the signal is alternating, given that it is always non-negative before exiting the USRP (Figure \ref{fig:load}.
+The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so we had to up the frequency to 13.56 MHz. The behavior of the signal strength is similar (Figure \ref{fig:tagtx}), but it is unclear why the signal is alternating, since it is non-negative before exiting the USRP (Figure \ref{fig:load}).
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/tagtx}
@@ -457,7 +453,7 @@ The implementation of the hardware tag emulation was not as successful. Specific
 \end{figure}
 
 
-Moreover, because of the lack of synchronization, when the RC522 Reader is on, the transmitted signal may overlap with the readers REQA, as shown in Figure \ref{fig:overlap}. However, this can be used to our advantage and jam signals: we confirmed that it could be used for (dynamic) interference in response to data being sent (although with some processing lag), since on the Arduino end, this lead to timeouts and other errors.
+Moreover, because of the lack of synchronization, when the RC522 Reader is on its REQA may overlap with the transmitted signal (Figure \ref{fig:overlap}). However, this can be used to our advantage and jam signals: doing (dynamic) interference in response to data being sent (although with some processing lag) results in timeouts and other errors at the Arduino end.
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/overlap}
@@ -474,7 +470,7 @@ Moreover, because of the lack of synchronization, when the RC522 Reader is on, t
 
 All in all, the Software-Defined Radio (SDR) approach for eavesdropping and emulating MIFARE Classic 1K and Ultralight cards proved to be very fruitful for an initial exploration and prototyping phase. That said, the work was hindered by the setup (both in terms of using USB 3.0 and in terms of the antenna), but it proved to be adequate for non-real-time processing and without any extensive optimizations. 
 
-However, it seems that for better signal processing, coding in C++ or directly on the FPGA would yield much better results (especially if one were to increase the sampling rate), so future work could focus on comparing the SDR approach with embedded platforms. Moreover, looking at newer cards such as the MIFARE Ultralight EV1 and the MIFARE DESFire EV2 would be an interesting extension, especially in the context of testing the platform in the real world, where MIFARE Classic cards have been rendered obsolete. Finally, more focus could be placed on respecting the timing requirements of the protocol --- which could be improved by doing clock recovery for synchronization --- but we firmly believe that this work is a good start.
+However, it seems that coding in C++ or directly on the FPGA would yield much better results (especially for higher sampling rates), so future work could focus on comparing the SDR approach with embedded platforms. Moreover, looking at newer cards such as the MIFARE Ultralight EV1 and the MIFARE DESFire EV2 would be an interesting extension, especially in the context of testing the platform in the real world, where MIFARE Classic cards have been rendered obsolete. Finally, more focus could be placed on respecting the timing requirements of the protocol --- which could be improved by doing clock recovery for synchronization --- but we firmly believe that this work is a good start.
 
 %----------------------------------------------------------------------------------------
 %	ACKNOWLEDGMENTS
@@ -506,12 +502,12 @@ I would like to thank Kasper Rasmussen for being my supervisor, for his invaluab
 
 \subsection{MIFARE Cards}
 \label{app:mifare}
-In this section, we focus on the MIFARE Ultralight and Classic 1K cards, with more general ISO details in \cite{iso144433}.
+In this section, we discuss the memory layout and commands used by the MIFARE Ultralight (Section \ref{app:ultralight}) and Classic 1K cards (Section \ref{app:classic1k}), with more general ISO details in \cite{iso144433}.
 
 \subsubsection{MIFARE Ultralight \cite{ultralight}}
 \label{app:ultralight}
 
-The memory layout for a MIFARE Ultralight card can be found in Figure \ref{fig:memul}. The card has a 7-byte UID SN[0-6], including 2 check bytes BCC[0-1]. SN0 is the manufacturer ID (0x04 for NXP Semiconductors), and the check bytes are defined as follows: $BCC0=0x88 \oplus SN0 \oplus SN1 \oplus SN2$ and $BCC1 = SN3 \oplus SN4 \oplus SN5 \oplus SN6$. Lock bytes can be used to turn pages into read-only mode, while One-Time Pad (OTP) bytes can be set to 1, but never set back to 0 again. As can be seen in Figure \ref{fig:fsmul}, Ultralight cards go through 2 rounds of ANTICOLLISION and SELECT commands.
+The MIFARE Ultralight has a 7-byte UID SN[0-6], including 2 check bytes BCC[0-1]. SN0 is the manufacturer ID (0x04 for NXP Semiconductors), and the check bytes are defined as follows: $BCC0=0x88 \oplus SN0 \oplus SN1 \oplus SN2$ and $BCC1 = SN3 \oplus SN4 \oplus SN5 \oplus SN6$. Lock bytes can be used to turn pages into read-only mode, while One-Time Pad (OTP) bytes can be set to 1, but never set back to 0 again. As can be seen in Figure \ref{fig:fsmul}, Ultralight cards go through 2 rounds of ANTICOLLISION and SELECT commands, and their memory layout is shown in Figure \ref{fig:memul}.
 
 
 \begin{figure}[h]
@@ -645,7 +641,7 @@ HALT				&     0x50 0x00 C0 C1				       	&   [passive ACK/NAK]             	\\ \
 \subsection{CRYPTO1}
 \label{app:crypto1}
 
-In this section, we summarize the CRYPTO1 algorithm as reverse-engineered in \cite{crypto1, classicvulnerabilities}, but do not discuss the numerous vulnerabilities with the cipher which are addressed in the original papers. In the notation of \cite{classicvulnerabilities}, let the (unencrypted) nonce RB be denoted by $n_T$, the token AB be denoted as $\{n_R\},\{a_R\}$ and the token BA be denoted as $\{a_T\}$. Also denote by $k$ the key, $u$ the tag's unique identifier (UID), and for any $x$, let $x_i$ be its $i$-th bit (for $i$ for which this is well-defined). The CRYPTO1 algorithm uses a Linear Feedback Shift Register (LFSR) of size equal to 48 bits which is initialized by the key (also of length 48). Thus, as $\alpha_i=a_i a_{i+1}\ldots a_{i+47}$ the internal state of the LFSR at time $i$, we get that:
+In this section, we summarize the CRYPTO1 algorithm as reverse-engineered in \cite{crypto1, classicvulnerabilities}, but do not discuss the numerous vulnerabilities with the cipher which are addressed in the original papers. In the notation of \cite{classicvulnerabilities}, let the (unencrypted) nonce RB be denoted by $n_T$, the token AB be denoted as $\{n_R\},\{a_R\}$ and the token BA be denoted as $\{a_T\}$. Also denote by $k$ the key, $u$ the tag's (non) unique identifier (UID), and for any $x$, let $x_i$ be its $i$-th bit (when this is well-defined). The CRYPTO1 algorithm uses a Linear Feedback Shift Register (LFSR) of size equal to 48 bits which is initialized by the key (also of length 48). Thus, denoting by $\alpha_i=a_i a_{i+1}\ldots a_{i+47}$ the internal state of the LFSR at time $i$, we get that:
 
 \begin{itemize}[nosep]
 \item $a_i := k_i$, for $0\le i \le 47$
@@ -671,16 +667,16 @@ These two main functions are summarized in Figure \ref{fig:lfsr}.
 
 \begin{figure}[h]
   \hfill\includegraphics[width=\linewidth]{img/lfsr} \hspace*{\fill}
-  \caption{Crypto1 LFSR \cite{classicvulnerabilities}}
+  \caption{CRYPTO1 LFSR \cite{classicvulnerabilities}}
   \label{fig:lfsr}
 \end{figure}
 
-The keystream bit $b_i$ is then defined by $b_i := f(a_i\ldots a_{47+i})$, and the encryptions of the $i$-th regular bit (i.e. excluding start/end and parity bits) is defined by XORing with $b_i$. Specifically, for $0\le i \le 31$, $\{n_{R,i}\}=n_{R,i} \oplus b_{32+i}$, $\{a_{R,i}\}=a_{R,i} \oplus b_{64+i}$, $\{a_{T,i}\}=a_{T,i} \oplus b_{96+i}$. Note that the first 32 bits are not used in the first authentication, but they are used in all subsequent authentications, as the tag nonce is encrypted (and the cipher is re-initialized), so that $\{n_{T,i}\}=n_{T,i} \oplus b_i$. 
+The keystream bit $b_i$ is then defined by $b_i := f(a_i\ldots a_{47+i})$, and the encryptions of the $i$-th regular bit (i.e. excluding start/end and parity bits) is defined by XORing with $b_i$. Specifically, for $0\le i \le 31$, $\{n_{R,i}\}=n_{R,i} \oplus b_{32+i}$, $\{a_{R,i}\}=a_{R,i} \oplus b_{64+i}$, and $\{a_{T,i}\}=a_{T,i} \oplus b_{96+i}$. Note that the first 32 bits are not used in the first authentication, but they are used in all subsequent authentications, as the tag nonce is encrypted (and the cipher is re-initialized), so that $\{n_{T,i}\}=n_{T,i} \oplus b_i$. 
 
-The challenges only depend on the random nonce $n_T$, with $a_R=suc^{64}(n_T)$ and $a_T=suc^{96}(n_T)$, where the ``{\bf successor function}" (used for the Pseudo Random Number Generation (PRNG) is iteratively applied 64 and 96 times respectively. It is defined by $suc(x_0x_1\ldots x_{31}):=x_1x_2\ldots x_{31}(x_{16}\oplus x_{18}\oplus x_{19}\oplus x_{21}))$ which only depends on the last 16 bits of the input.
+The challenges only depend on the random nonce $n_T$, with $a_R=suc^{64}(n_T)$ and $a_T=suc^{96}(n_T)$, where the ``{\bf successor function}" --- also used for the Random Number Generation (RNG) --- is iteratively applied 64 and 96 times respectively. It is defined by $suc(x_0x_1\ldots x_{31}):=x_1x_2\ldots x_{31}(x_{16}\oplus x_{18}\oplus x_{19}\oplus x_{21})$ which only depends on the last 16 bits of the input.
 
 
-It is worth noting that the start and ending transmission bits are not encrypted, but the parity bits are --- by reusing the encryption bit for the next bit to be encrypted: $\{p_j\} :=p_j \oplus b_{8j +8}$. This leaks information, and makes the protocol incompatible with the ISO standard, since the parity bits can be inverted. See Appendix \ref{app:traces} for an example.
+It is worth noting that the start and ending transmission bits are not encrypted, but the parity bits are --- by reusing the encryption bit for the next bit to be encrypted: $\{p_j\} :=p_j \oplus b_{8j +8}$. This leaks information, and makes the protocol incompatible with the ISO standard, since the parity bits can be inverted. See Table \ref{tab:trace1k} for an example.
 
 
 \subsection{Example Traces}
