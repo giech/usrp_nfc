@@ -97,10 +97,10 @@ In this report, we describe a Software-Defined Radio (SDR) approach for eavesdro
 \section{Introduction}
 \label{sec:introduction}
 
-Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally, such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies, to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
+Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally (Section \ref{sec:related}), such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies, to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
 
 
-To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wire that allows passive eavesdropping on reader-tag communication. Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has ``a market share of more than 77\% in the transport ticketing industry", with ``150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{subsec:crypto1}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions are as follows:
+To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wire that allows passive eavesdropping on reader-tag communication (whose protocols are explained in Section \ref{sec:background}). Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has ``a market share of more than 77\% in the transport ticketing industry", with ``150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{subsec:crypto1}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions (detailed in Section \ref{sec:implementation} and evaluated in Section \ref{sec:evaluation}) are as follows:
 
 \begin{enumerate}[noitemsep]
 \item We implement in pure Software-Defined Radio a demodulator for NFC/RFID readers and tags operating in the 13.56 MHz frequency, which decodes radio waves into plaintext packets.
@@ -109,10 +109,6 @@ To this end, we developed such an implementation on an Ettus Research Universal 
 \item Though our transmission capabilities cannot keep up with the strict timing requirements of the protocol, we show how our implementation can jam real reader-tag communications and prevent the successful transmission of data.
 \item Overall, our work shows that prototyping using Software-Defined Radio is sufficient in practice for passive attacks, without the need for extensive optimizations or heavy computing power.
 \end{enumerate}
-
-PAPER STRUCTURE
-
-
 %----------------------------------------------------------------------------------------
 %	LITERATURE REVIEW
 %----------------------------------------------------------------------------------------
@@ -143,7 +139,7 @@ Specifically, we focus on {\bf Type A} communications, whose {\bf carrier freque
 
 Because the carrier frequency is $f_c=13.56$ MHz, the wavelength is $c/f_c\approx22$ meters, making it impossible to deploy antennas that would fit in a card-size form-factor. Additionally, because the cards are {\bf passive} (i.e. do not have their own power source), both the communication and the power source are achieved through {\bf inductive coupling} from the PCD's antenna loop to the PICC's antenna loop.  
 
-SECTION STRUCTURE
+The PCD encoding is explained in Section \ref{subsec:pcd}, the PICC encoding in Section \ref{subsec:picc}, with the high-level protocol discussed in Section \ref{subsec:protocol}, and the MIFARE Classic encryption algorithm in Section \ref{subsec:crypto1}.
 
 \subsection{PCD Transmissions}
 \label{subsec:pcd}
@@ -257,10 +253,10 @@ What is more, the parity bits are also encrypted (making the MIFARE Classic 1K {
 \section{Implementation}
 \label{sec:implementation}
 
-SECTIONS
-
+In this section we discuss our setup and methodology (Section \ref{subsec:setup}), the design of the antenna used (Section \ref{subsec:antenna}), as well as the approach used for decoding transmissions (Section \ref{subsec:eavesdrop}) and for emulating them (Section \ref{subsec:emulate}).
 
 \subsection{Setup and Methodology}
+\label{subsec:setup}
 
 For this project, we used Ettus Research's Universal Software Radio Peripheral (USRP) N210 \cite{usrp}, in combination with the BasicRX/TX and LFRX/TX daughterboards \cite{daughterboards}, both of which cover the 13.56 MHz frequency. The USRP has become the de-facto SDR platform in combination, and also allows custom code to be written on its FPGA, which we did not pursue in this project. Instead, all signal processing was done on a laptop, using Python and the GNU Radio toolkit/framework, which is easily extensible and provides many building blocks (``modules") that can be incorporated into new designs.
 
@@ -393,9 +389,10 @@ Modulating the Reader's output is straightforward: it is enough to generate a 13
 \section{Evaluation}
 \label{sec:evaluation}
 
-explain
+In this section, we take a critical look at our approach for eavesdropping (Section \ref{subsec:evaleavesdrop}) and for emulating (Section \ref{subsec:evalemulate}).
 
 \subsection{Eavesdropping}
+\label{subsec:evaleavesdrop}
 
 First of all, it is worth mentioning that with recorded reader-tag communications, the eavesdropping code behaves predictably and always correctly decodes the messages. However, at least initially the code required 50 seconds of processing per 1 second of data. This was due to the fact that incoming messages in GNU Radio Python code are stored as \texttt{NumPy} arrays which do not support efficient iteration. Converting them to a list before iteration resulted in a $10\times$ improvement, and assigning local names to function calls resulted in an additional $2.5\times$ improvement, for a processing cost of about 2.2 seconds per 1 second of data.
 
@@ -414,6 +411,7 @@ This setback thus necessitated the setup shown in Figure \ref{fig:setup} where t
 It is worth pointing out that the Reader commands are fully decoded even during the signal strength changes. This is remains true and is even more pronounced in Figure \ref{fig:usrpreset}, where the Arduino is reset (but the tag remains close to the reader). The moving average methodology, then, works well, and we have included a couple of example traces received in Appendix \ref{app:traces} for reference and completeness.
 
 \subsection{Emulating}
+\label{subsec:evalemulate}
 
 There is not much to say about software emulation (either of both reader and tag, or of one of them against a recorded WAV file), except that it works, but does not adhere to the ISO and MIFARE timing requirements. Specifically, due to the fact that the signal processing is not real-time, it did not seem prudent to focus on clock recovery/synchronization and implementing timeouts, as it would be impossible to test them within the confines of our system.
 
@@ -444,8 +442,7 @@ However, this makes it harder to test the transmissions against real hardware. T
 \end{figure}
 
 
-The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so we had to up the frequency to 13.56 MHz. The behavior of the signal strength is similar to the Reader TX (Figure \ref{fig:tagtx}), but because of the lack of synchronization, this means that when the RC522 Reader is on, the signals overlap, as shown in Figure \ref{fig:overlap}. We used this to our advantage and confirmed that it could be used for (dynamic) interference in response to data being sent (although with some processing lag), since on the Arduino end, this lead to timeouts and other errors.
-
+The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so we had to up the frequency to 13.56 MHz. The behavior of the signal strength is similar to the Reader TX (Figure \ref{fig:tagtx}), but it is unclear why the signal is alternating, given that it is always non-negative before exiting the USRP (Figure \ref{fig:load}.
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/tagtx}
@@ -453,6 +450,14 @@ The implementation of the hardware tag emulation was not as successful. Specific
   \label{fig:tagtx}
 \end{figure}
 
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/load}
+  \caption{Load Modulation Before TX}
+  \label{fig:load}
+\end{figure}
+
+
+Moreover, because of the lack of synchronization, when the RC522 Reader is on, the transmitted signal may overlap with the readers REQA, as shown in Figure \ref{fig:overlap}. However, this can be used to our advantage and jam signals: we confirmed that it could be used for (dynamic) interference in response to data being sent (although with some processing lag), since on the Arduino end, this lead to timeouts and other errors.
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/overlap}
@@ -460,27 +465,16 @@ The implementation of the hardware tag emulation was not as successful. Specific
   \label{fig:overlap}
 \end{figure}
 
-??? what is output like?
-
 %----------------------------------------------------------------------------------------
 %	CONCLUSIONS
 %----------------------------------------------------------------------------------------
 
-\section{Conclusions}
+\section{Conclusions and Future Work}
 \label{sec:conclusions}
-and future work
 
-lack of newer cards eg desfire and ultralight ev
+All in all, the Software-Defined Radio (SDR) approach for eavesdropping and emulating MIFARE Classic 1K and Ultralight cards proved to be very fruitful for an initial exploration and prototyping phase. That said, the work was hindered by the setup (both in terms of using USB 3.0 and in terms of the antenna), but it proved to be adequate for non-real-time processing and without any extensive optimizations. 
 
-need better setup (laptop-wise)
-better antenna
-
-makes sense why coding in FPGA/C,  but sufficient even under bad setup
-
-ideal if had embedded solutions in hand
-
-should really do clock sync, but would need to re-work architecture
-
+However, it seems that for better signal processing, coding in C++ or directly on the FPGA would yield much better results (especially if one were to increase the sampling rate), so future work could focus on comparing the SDR approach with embedded platforms. Moreover, looking at newer cards such as the MIFARE Ultralight EV1 and the MIFARE DESFire EV2 would be an interesting extension, especially in the context of testing the platform in the real world, where MIFARE Classic cards have been rendered obsolete. Finally, more focus could be placed on respecting the timing requirements of the protocol --- which could be improved by doing clock recovery for synchronization --- but we firmly believe that this work is a good start.
 
 %----------------------------------------------------------------------------------------
 %	ACKNOWLEDGMENTS
