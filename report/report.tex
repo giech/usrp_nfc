@@ -59,6 +59,11 @@
 \endoldlongtable}
 
 
+%----------------------------------------------------------------------------------------
+%	MISC
+%----------------------------------------------------------------------------------------
+
+\usepackage{subcaption}
 \newcommand{\ms}{\ensuremath{\mu s} }
 
 
@@ -67,7 +72,7 @@
 %----------------------------------------------------------------------------------------
 
 \Abstract{
-In this report, we describe a Software-Defined Radio (SDR) approach for eavesdropping on Near Field Communications (NFC) and Radio Frequency Identification (RFID) cards operating at 13.56 MHz. We show that GNU Radio and Python make a great platform for prototyping, while maintaining sufficient performance for passive attacks without extensive optimizations and using only modest processing power. We successfully eavesdrop on real MIFARE Ultralight and Classic 1K cards by capturing the raw radio waves with a home-made antenna. We recover the plaintext of both reader and tag fully by demodulating the incoming radio waves, parsing individual bits and error detection codes into packets, and then decrypting them if necessary. On the transmission side, we achieve full software emulation of the reader and of MIFARE Ultralight and Classic 1K cards (including encryption), and partial hardware emulation, where we correctly modulate the signal, but not within the strict timing limits of the protocol. Our transmissions can also be used to prevent legitimate communication by interfering with the intended reader or tag signals.
+In this report, we describe a Software-Defined Radio (SDR) approach for eavesdropping on Near Field Communications (NFC) and Radio Frequency Identification (RFID) cards operating at 13.56 MHz. We show that GNU Radio and Python make a great platform for prototyping, while maintaining sufficient performance for passive attacks without extensive optimizations and using only modest processing power. We successfully eavesdrop on real MIFARE Ultralight and Classic 1K cards by capturing the raw radio waves with a home-made antenna. We recover the plaintext of both reader and tag fully by demodulating the incoming radio waves, parsing individual bits and error detection codes into packets, and then decrypting them when necessary. On the transmission side, we achieve full software emulation of the reader and of MIFARE Ultralight and Classic 1K cards (including encryption), and partial hardware emulation, where we correctly modulate the signal, but not within the strict timing limits of the protocol. Our transmissions can also be used to prevent legitimate communication by interfering with the intended reader or tag signals.
 }
 
 
@@ -81,7 +86,7 @@ In this report, we describe a Software-Defined Radio (SDR) approach for eavesdro
 
 \maketitle % Print the title and abstract box
 
-\tableofcontents % Print the contents section
+%\tableofcontents % Print the contents section
 
 \thispagestyle{empty} % Removes page numbering from the first page
 
@@ -95,7 +100,7 @@ In this report, we describe a Software-Defined Radio (SDR) approach for eavesdro
 Contactless cards and tags have become very popular in recent years, with everyday applications including e-passports \cite{epassports}, ticketing \cite{mbta, chipkaart, classicvulnerabilities}, access control \cite{imperial}, and payment \cite{relay, practicalrelay} systems. However, as these devices operate wirelessly, adversaries can pick up the radio signals and eavesdrop on the communication between a tag and a reader. Traditionally, such attacks on radio communications required dedicated hardware for particular frequencies and modulation types, but with the advent of Software-Defined Radio (SDR), it is possible to use generic equipment and perform the demodulation in software. Even so, despite a range of embedded devices and Field-Programmable Gate Arrays (FPGAs) that are capable of various attacks on Near Field Communication (NFC), Radio Frequency Identification (RFID), and related technologies, to the best of our knowledge no open-source SDR implementation exists for High-Frequency (HF) NFC.\footnote{Though they exist for UHF Gen2 cards. See \url{https://github.com/brunoprog64/rfid-gen2} and \url{https://github.com/yqzheng/usrp2reader} for instance.} 
 
 
-To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wire that allows passive eavesdropping on reader-tag communication. Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has ``a market share of more than 77\% in the transport ticketing industry", with ``150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{sec:XXX}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions are as follows:
+To this end, we developed such an implementation on an Ettus Research Universal Software Radio Peripheral (USRP) using Python and GNU Radio with an antenna made out of simple wire that allows passive eavesdropping on reader-tag communication. Though our implementation is easily extensible, we focused on MIFARE cards by NXP Semiconductors, since MIFARE has ``a market share of more than 77\% in the transport ticketing industry", with ``150 million reader and 10 billion contactless and dual interface IC's sold" \cite{mifare}. Specifically, we use Ultralight \cite{ultralight} and Classic 1K \cite{classic1k} cards, as the former does not employ any encryption, while the latter uses a broken cryptographic algorithm (Section \ref{subsec:crypto1}), making them ideal candidates for such exploration. Moreover, we achieve full software and partial hardware reader and tag emulation, that can also be used to jam signals between a legitimate tag and reader. In summary, our contributions are as follows:
 
 \begin{enumerate}[noitemsep]
 \item We implement in pure Software-Defined Radio a demodulator for NFC/RFID readers and tags operating in the 13.56 MHz frequency, which decodes radio waves into plaintext packets.
@@ -221,6 +226,7 @@ The standard has also defined {\bf Anticollision} and {\bf Selection} phases bef
 Finally, we mention that to detect errors with longer transmissions, for some requests and responses a {\bf Cyclic Redundancy Check (CRC)} is used on the transmitted bytes (but excluding start/end and parity bits). The polynomial used is $x^{16}+x^{12}+x^5+1$, with a starting value of 0x6363, under the assumption that ``FF0 shall be the leftmost flip-flop where data is shifted in  [and] FF15 shall be the rightmost flip-flop where data is shifted out" \cite{iso144433}. For example, the {\bf HALT/HLTA} command uses 2 bytes (0x50 0x00) followed by the two CRC bytes which can be calculated as 0x57 0xCD.
 
 \subsection{MIFARE Classic 1K Encryption}
+\label{subsec:crypto1}
 
 Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}, the MIFARE Classic 1K uses a proprietary cryptographic protocol called CRYPTO1 \cite{classic1k}. The details of the protocol were not made publicly available, with the MIFARE datasheets only broadly explaining the 3-pass protocol \cite{classic1k}. Each {\bf sector} (equal to 4 {\bf blocks} of 16 bytes each) has two 6-byte keys ({\bf Key A and B}), which on delivery are set to [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF] (but can be changed later on a per-sector basis). Each authentication happens with one of the two keys chosen by the reader, and can only be used to access a specific sector. Each sector contains one block (the {\bf sector trailer}) which contains the two keys and some {\bf access bits} which determine the allowed operations for the 4 blocks (See Appendix \ref{app:classic1k} for more details).
 
@@ -243,6 +249,158 @@ Though we discuss the encryption algorithm in greater detail in Appendix \ref{ap
 
 What is more, the parity bits are also encrypted (making the MIFARE Classic 1K {\em incompatible} with the ISO 14443 protocol), and ``the bit of keystream used to encypt the parity bits is reused to encrypt the next bit of plaintext" \cite{classicvulnerabilities}. This vulnerability, in combination with the nested authentication mentioned above (which causes the token RB to also be encrypted) leaks data which can be used to guess the nonce or to reveal the secret key.
 
+
+%----------------------------------------------------------------------------------------
+%	IMPLEMENTATION
+%---------------------------------------------------------------------------------------- 
+
+\section{Implementation}
+\label{sec:implementation}
+
+SECTIONS
+
+
+\subsection{Setup and Methodology}
+
+For this project, we used Ettus Research's Universal Software Radio Peripheral (USRP) N210 \cite{usrp}, in combination with the BasicRX/TX and LFRX/TX daughterboards \cite{daughterboards}, both of which cover the 13.56 MHz frequency. The USRP has become the de-facto SDR platform in combination, and also allows custom code to be written on its FPGA, which we did not pursue in this project. Instead, all signal processing was done on a laptop, using Python and the GNU Radio toolkit/framework, which is easily extensible and provides many building blocks (``modules") that can be incorporated into new designs.
+
+For lack of a better alternative, the laptop used is a Samsung NP900X4C with an Intel i5-3317U @ 1.7 GHz and 8 GB of RAM, but the operating system used (Kali Linux 1.1.0a) was booted off a 16 GB USB 3.0 Lexar JumpDrive. Moreover, due to the lack of an Ethernet port, the USRP was connected to the laptop on a Plugable USB3-E1000 USB 3.0 Gigabit Ethernet Adapter.
+
+
+To measure signals accurately, we used a Rigol DS2302A digital oscilloscope with two 300 MHz channels \cite{rigol}. 
+
+The actual reader was an RFID-RC522 module using the MFRC522 chip by NXP Semiconductors \cite{mfrc522} connected to an Arduino UNO using the Serial Peripheral Interface (SPI) and the DumpInfo example at \cite{library}. A schematic is found in Figure \ref{fig:rc522schematic}, while Figure \ref{fig:rc522pic} is a picture of the module, where the test pad for the reception (RX) part of the antenna is highlighted.
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/rc522schematic}
+  \caption{RC522 Schematic \url{http://img.alibaba.com/img/pb/082/266/824/824266082_485.jpg}}
+  \label{fig:rc522schematic}
+\end{figure}
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/rc522pic}
+  \caption{RC522 RX Test Pad}
+  \label{fig:rc522pic}
+\end{figure}
+
+
+The types of tags/cards used are shown in Figure \ref{fig:cards} and are a Classic 1K card, and an NTAG203 \cite{ntag203}, which is compatible with the Ultralight. The NTAG203 is actually larger and has a different memory layout, but the Arduino library used does not distinguish between the two, so only 16 out of the 42 pages are revealed. It is important to note that although we only two {\em types} of cards were used, more than one actual card per type was tried with identical results.
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/cards}
+  \caption{Cards/Tags used for the experiment}
+  \label{fig:cards}
+\end{figure}
+
+\subsection{The Antenna}
+
+Much research has been conducted into making RFID-type antennas work well and with up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) from \cite{pnantenna} with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
+
+\begin{equation}
+\label{eq:inductance}
+\hfill L [nH] = \frac{24.6 \cdot N^2\cdot D[cm]}{1+2.75\cdot\frac{s[cm]}{D[cm]}}\hspace*{\fill}
+\end{equation}
+
+range
+capacitor/resistor/transistor on antenna etc
+briefly talk about failed amplifier (not LNA!)
+
+\url{http://marcusjenkins.com/amateur-radio-2/a-signal-amplifier-module-for-hf/}
+
+did not use coax, but SMA...
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/antennapic}
+  \caption{The Antenna PCB}
+  \label{fig:antennapic}
+\end{figure}
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/antennaschematic}
+  \caption{The Antenna Schematic}
+  \label{fig:antennaschematic}
+\end{figure}
+
+
+\subsection{Manual Analysis}
+data size when WAV
+audacity
+
+pics 
+
+
+\subsection{The Code}
+separate eavesdrop from transmit
+
+say that mostly worked on recordings to ensure determinism
+it was easy to include usrp, but strength/distance of antenna made very sensitive
+
+maybe subsections
+(ASK, Load Modulation, Manchester encoding, Modified Miller encoding)
+
+	signal detection 
+	the fsm	
+	crypto
+	transmission
+
+talk about code structure
+
+
+
+coding of the demodulators (manchester, miller), the interactions, etc. i.e. high level code overview
+talk about how you take average of signal strength etc. note how they have different antennas usually
+
+need for callbacks
+ideal to have clock recovery
+
+
+speedups due to numpy, and removing function calls from 50sec/sec to 6secs/sec to 2secs/sec
+
+
+explain TX 
+how to produce the encodings for the 2
+pictures comparing, also showing from real reader
+
+
+%----------------------------------------------------------------------------------------
+%	EVALUATION
+%----------------------------------------------------------------------------------------
+
+\section{Evaluation}
+\label{sec:evaluation}
+
+compare to embedded solutions
+
+
+conclude that good, but not real time, also not synchronization on clock...
+clock recovery
+
+lack of newer cards eg desfire and ultralight ev
+
+
+critique transmission for tag. also could not get it down to the kHz range.
+
+needed better setup
+
+compare the 2 daughterboards
+
+talk about different cards (not just one)
+how it is easy to do ntag203
+
+bad antenna
+
+talk about touching/not touching reader
+
+%----------------------------------------------------------------------------------------
+%	CONCLUSIONS
+%----------------------------------------------------------------------------------------
+
+\section{Conclusions}
+\label{sec:conclusions}
+and future work
 
 
 %----------------------------------------------------------------------------------------
