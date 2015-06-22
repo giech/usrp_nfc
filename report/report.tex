@@ -151,7 +151,7 @@ SECTION STRUCTURE
 Amplitude Shift Keying (ASK) of depth $X$\% is a form of digital modulation which specifies that if the amplitude of the signal representing a digital $1$ is equal to $A$ and the amplitude of the signal representing a digital $0$ is equal to $B$, then $X=\frac{A-B}{A+B}$, as showing in Figure \ref{fig:ask}. Specifically, for 100\% ASK, no signal is sent at all during a digital $0$, indicating that such periods must be very brief, since the PICC needs to keep charge (using a capacitor) for the period of silence.
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/ask.png}
+  \includegraphics[width=\linewidth]{img/ask}
   \caption{Amplitude Shift Keying (ASK) \cite{atmel}}
   \label{fig:ask}
 \end{figure}
@@ -165,7 +165,7 @@ This is achieved through the Modified Miller Encoding, which ensures that there 
 \end{itemize}
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/miller.png}
+  \includegraphics[width=\linewidth]{img/miller}
   \caption{Miller Encoding at 100\% ASK \cite{atmel}}
   \label{fig:miller}
 \end{figure}
@@ -173,14 +173,14 @@ This is achieved through the Modified Miller Encoding, which ensures that there 
 In practice, however, because of hardware imperfections, the pause is not perfect, but needs to comply with the requirements shown in Figure \ref{fig:pause}. As a result, the modulated carrier for the encodings resembles Figure \ref{fig:miller2}.
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/pause.png}
+  \includegraphics[width=\linewidth]{img/pause}
   \caption{Real Pause Requirements \cite{iso144432}}
   \label{fig:pause}
 \end{figure}
 
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/miller2.png}
+  \includegraphics[width=\linewidth]{img/miller2}
   \caption{Realistic Miller Encoding \cite{mifare}}
   \label{fig:miller2}
 \end{figure}
@@ -201,13 +201,13 @@ The bits are then encoded using {\bf On-Off Keying (OOK)} or {\bf Manchester Enc
 
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/manchester2.png}
+  \includegraphics[width=\linewidth]{img/manchester2}
   \caption{Manchester Encoding with Load Modulation \cite{mifare}}
   \label{fig:manchester}
 \end{figure}
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/manchester.png}
+  \includegraphics[width=\linewidth]{img/manchester}
   \caption{Envelope of Load Modulation \cite{atmel}}
   \label{fig:manchester2}
 \end{figure}
@@ -234,13 +234,13 @@ Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}
 The PCD indicates to the PICC that it wants to authenticate through a command indicating which key to be used and what address to use. As shown in Figures \ref{fig:auth1} and \ref{fig:auth2}, the three-pass scheme consists of a 4 byte challenge sent from the PICC to the PCD  (Token RB), an 8-byte challenge and response (of 4 bytes each) send from the PCD to the PICC (Token AB) and a response from the PICC to the PCD (Token BA), if the reader's encryption was correct. After the first challenge (Token RB), {\bf all} traffic is encrypted, even subsequent authentications, which leads to a weakness known as {\bf nested authentication} \cite{classicvulnerabilities}.
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/auth1.png}
+  \includegraphics[width=\linewidth]{img/auth1}
   \caption{First Part of Authentication \cite{classic1k}}
   \label{fig:auth1}
 \end{figure}
 
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/auth2.png}
+  \includegraphics[width=\linewidth]{img/auth2}
   \caption{Second Part of Authentication \cite{classic1k}}
   \label{fig:auth2}
 \end{figure}
@@ -294,6 +294,7 @@ The types of tags/cards used are shown in Figure \ref{fig:cards} and are a Class
 \end{figure}
 
 \subsection{The Antenna}
+\label{subsec:antenna}
 
 Much research has been conducted into making RFID-type antennas work well and with up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we made our own. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
 
@@ -329,7 +330,7 @@ Though we discuss the antenna more in Section \ref{sec:evaluation}, we mention h
 \end{figure}
 
 
-%%%% THIS IS FOR NEXT SECTION
+%%%% FOR NEXT SECTION
 \begin{figure*}[!t]
   \includegraphics[width=\textwidth]{img/annotated}
   \caption{Annotated Recoding}
@@ -373,43 +374,93 @@ Modulating the Reader's output is straightforward: it is enough to generate a 13
 %	EVALUATION
 %----------------------------------------------------------------------------------------
 
+
+%%%%  FOR NEXT SECTION
+\begin{figure*}[ht]
+  \includegraphics[width=\linewidth]{img/usrpreal}
+  \caption{Signal Received when Approaching Tag}
+  \label{fig:usrpreal}
+\end{figure*}
+
+
+\begin{figure*}[ht]
+  \includegraphics[width=\linewidth]{img/usrpreset}
+  \caption{Signal Received with Fixed Tag and Arduino Reset}
+  \label{fig:usrpreset}
+\end{figure*}
+
+
 \section{Evaluation}
 \label{sec:evaluation}
 
+explain
 
-pictures comparing, also showing from real reader
+\subsection{Eavesdropping}
 
+First of all, it is worth mentioning that with recorded reader-tag communications, the eavesdropping code behaves predictably and always correctly decodes the messages. However, at least initially the code required 50 seconds of processing per 1 second of data. This was due to the fact that incoming messages in GNU Radio Python code are stored as \texttt{NumPy} arrays which do not support efficient iteration. Converting them to a list before iteration resulted in a $10\times$ improvement, and assigning local names to function calls resulted in an additional $2.5\times$ improvement, for a processing cost of about 2.2 seconds per 1 second of data.
 
-compare to embedded solutions
-speedups due to numpy, and removing function calls from 50sec/sec to 6secs/sec to 2secs/sec
+This is still not real time, but given the unusual setup which relies heavily on the USB bus, this performance is acceptable given the convenience Python presents for prototyping. That said, the setup could have substantially benefited from a more fine-tuned antenna. As mentioned in Section \ref{subsec:antenna}, the range was only a couple of centimeters, and this was certainly not improved by the lack of a proper connecting cable and shielding. 
 
-conclude that good, but not real time, also not synchronization on clock...
-clock recovery
-so no timeouts
+In the Do-It-Yourself (DIY) spirit, we also attempted to create an amplifier (which unfortunately would not be a Low-Noise Amplifier) based on the design in \cite{amplifier} with a couple of minor resistance modifications to make it work with 9V. However, the modifications did no quite work, but instead resulted in signal distortion as shown in Figure \ref{fig:amplified}.
 
-lack of newer cards eg desfire and ultralight ev
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/amplified}
+  \caption{Failed Amplification: Original in Yellow and ``Amplified" in Blue}
+  \label{fig:amplified}
+\end{figure}
 
+This setback thus necessitated the setup shown in Figure \ref{fig:setup} where the PCD, the PICC, and our antenna are in close proximity. However, we also tested a more ``real-world" situation, where the user approaches the reader with the tag. This is shown in Figure \ref{fig:usrpreal}, where the signal strength drops when the tag starts approaching reader (due to their coupling --- indicated by red). As can be seen, the signal strength is not sufficient to recover the tag's transmission during the anticollision and selection phases, but it is can recover them after the first READ request. This would be insufficient for MIFARE Classic cards, but it does result in partial recovery for the Ultralight card.
 
-critique transmission for tag. also could not get it down to the kHz range.
+It is worth pointing out that the Reader commands are fully decoded even during the signal strength changes. This is remains true and is even more pronounced in Figure \ref{fig:usrpreset}, where the Arduino is reset (but the tag remains close to the reader). The moving average methodology, then, works well, and we have included a couple of example traces received in Appendix \ref{app:traces} for reference and completeness.
 
-needed better setup
+\subsection{Emulating}
 
-compare the 2 daughterboards
-
-talk about different cards (not just one)
-how it is easy to do ntag203
-
-bad antenna. did not use coax, but SMA...
-briefly talk about failed amplifier (not LNA!)
-
-\url{http://marcusjenkins.com/amateur-radio-2/a-signal-amplifier-module-for-hf/}
+There is not much to say about software emulation (either of both reader and tag, or of one of them against a recorded WAV file), except that it works, but does not adhere to the ISO and MIFARE timing requirements. Specifically, due to the fact that the signal processing is not real-time, it did not seem prudent to focus on clock recovery/synchronization and implementing timeouts, as it would be impossible to test them within the confines of our system.
 
 
-talk about touching/not touching reader (antenna)
+\begin{figure}[h]
+\centering
+\begin{minipage}[b]{.47\linewidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/emulated}
+  \captionof{figure}{Emulated Signal}
+  \label{fig:emulated}
+\end{minipage}
+\begin{minipage}[b]{.47\linewidth}
+  \centering
+  \includegraphics[width=\textwidth]{img/real}
+  \captionof{figure}{Real Signal}
+  \label{fig:real}
+\end{minipage}
+\end{figure}
 
-talk about real usrp signal vs already touching (tag)
+However, this makes it harder to test the transmissions against real hardware. Testing the reader emulation is somewhat easier because the reader generate its own carrier. Specifically, as shown in Figure \ref{fig:emulated}, the emulated signal closely resembles the signal of a real reader (Figure \ref{fig:real}). Moreover, as shown in figure \ref{fig:readertx}, we see in yellow that the USRP signal sent is not particularly strong, and the reception on the (unpowered) RC522 reader antenna in blue already indicates a strength drop due to our untuned transmissions.
 
-example traces in appendix
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/readertx}
+  \caption{Reader TX in Yellow, RC522 Antenna in Blue}
+  \label{fig:readertx}
+\end{figure}
+
+
+The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so we had to up the frequency to 13.56 MHz. The behavior of the signal strength is similar to the Reader TX (Figure \ref{fig:tagtx}), but because of the lack of synchronization, this means that when the RC522 Reader is on, the signals overlap, as shown in Figure \ref{fig:overlap}. We used this to our advantage and confirmed that it could be used for (dynamic) interference in response to data being sent (although with some processing lag), since on the Arduino end, this lead to timeouts and other errors.
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/tagtx}
+  \caption{Tag TX in Yellow, RC522 Antenna in Blue}
+  \label{fig:tagtx}
+\end{figure}
+
+
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/overlap}
+  \caption{Tag TX Overlap with RC522 Reader}
+  \label{fig:overlap}
+\end{figure}
+
+??? what is output like?
 
 %----------------------------------------------------------------------------------------
 %	CONCLUSIONS
@@ -418,6 +469,17 @@ example traces in appendix
 \section{Conclusions}
 \label{sec:conclusions}
 and future work
+
+lack of newer cards eg desfire and ultralight ev
+
+need better setup (laptop-wise)
+better antenna
+
+makes sense why coding in FPGA/C,  but sufficient even under bad setup
+
+ideal if had embedded solutions in hand
+
+should really do clock sync, but would need to re-work architecture
 
 
 %----------------------------------------------------------------------------------------
@@ -462,13 +524,13 @@ The memory layout for a MIFARE Ultralight card can be found in Figure \ref{fig:m
 \centering
 \begin{minipage}[b]{.47\textwidth}
   \centering
-  \includegraphics[width=\textwidth]{img/fsmul.png}
+  \includegraphics[width=\textwidth]{img/fsmul}
   \captionof{figure}{MIFARE Ultralight FSM}
   \label{fig:fsmul}
 \end{minipage}
 \begin{minipage}[b]{.47\textwidth}
   \centering
-  \includegraphics[width=\textwidth]{img/memul.png}
+  \includegraphics[width=\textwidth]{img/memul}
   \captionof{figure}{MIFARE Ultralight Memory Layout}
   \label{fig:memul}
 \end{minipage}
@@ -508,13 +570,13 @@ The memory layout for Classic 1K cards can be seen in Figure \ref{fig:mem1k}. Th
 \centering
 \begin{minipage}[b]{.47\textwidth}
   \centering
-  \includegraphics[width=\textwidth]{img/mem1k.png}
+  \includegraphics[width=\textwidth]{img/mem1k}
   \captionof{figure}{MIFARE Classic 1K Memory Layout}
   \label{fig:mem1k}
 \end{minipage}
 \begin{minipage}[b]{.47\textwidth}
   \centering
-  \includegraphics[width=\textwidth]{img/access.png}
+  \includegraphics[width=\textwidth]{img/access}
   \captionof{figure}{MIFARE Classic 1K Access Bits}
   \label{fig:access}
 \end{minipage}
@@ -526,13 +588,13 @@ The memory layout for Classic 1K cards can be seen in Figure \ref{fig:mem1k}. Th
 \centering
 \begin{minipage}[b]{.47\textwidth}
   \centering
-  \includegraphics[width=\textwidth]{img/trailer.png}
+  \includegraphics[width=\textwidth]{img/trailer}
   \captionof{figure}{Trailer Block Access Conditions}
   \label{fig:trailer}
 \end{minipage}
 \begin{minipage}[b]{.47\textwidth}
   \centering
-  \includegraphics[width=\textwidth]{img/data.png}
+  \includegraphics[width=\textwidth]{img/data}
   \captionof{figure}{Data Block Access Conditions}
   \label{fig:data}
 \end{minipage}
@@ -541,7 +603,7 @@ The memory layout for Classic 1K cards can be seen in Figure \ref{fig:mem1k}. Th
 It is worth noting that the data blocks can be used for simple read/write operations, or they can be used as ``value blocks" for applications which need more robustness and backups and could benefit from operations like INCREMENT and DECREMENT (see below). The layout for such blocks is shown in Figure \ref{fig:value}.
 
 \begin{figure}[h]
-  \hfill\includegraphics[width=0.7\linewidth]{img/value.png} \hspace*{\fill}
+  \hfill\includegraphics[width=0.7\linewidth]{img/value} \hspace*{\fill}
   \caption{Value Block Layout}
   \label{fig:value}
 \end{figure}
@@ -550,7 +612,7 @@ It is worth noting that the data blocks can be used for simple read/write operat
 
 \begin{figure}[ht]
  \hfill
-  \includegraphics[height=7cm,keepaspectratio]{img/fsm1k.png}
+  \includegraphics[height=7cm,keepaspectratio]{img/fsm1k}
  \hspace*{\fill}
   \caption{Classic 1K FSM}
   \label{fig:fsm1k}
@@ -614,7 +676,7 @@ The outputs are encrypted using a ``{\bf filter function}":
 These two main functions are summarized in Figure \ref{fig:lfsr}.
 
 \begin{figure}[h]
-  \hfill\includegraphics[width=\linewidth]{img/lfsr.png} \hspace*{\fill}
+  \hfill\includegraphics[width=\linewidth]{img/lfsr} \hspace*{\fill}
   \caption{Crypto1 LFSR \cite{classicvulnerabilities}}
   \label{fig:lfsr}
 \end{figure}
