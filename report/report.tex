@@ -295,75 +295,79 @@ The types of tags/cards used are shown in Figure \ref{fig:cards} and are a Class
 
 \subsection{The Antenna}
 
-Much research has been conducted into making RFID-type antennas work well and with up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) from \cite{pnantenna} with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
+Much research has been conducted into making RFID-type antennas work well and with up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we made our own. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
 
 \begin{equation}
 \label{eq:inductance}
 \hfill L [nH] = \frac{24.6 \cdot N^2\cdot D[cm]}{1+2.75\cdot\frac{s[cm]}{D[cm]}}\hspace*{\fill}
 \end{equation}
 
-range
-capacitor/resistor/transistor on antenna etc
-briefly talk about failed amplifier (not LNA!)
+Measuring the signal strength of the wire loop and of the RC522 RX test pad directly on the oscilloscope resulted in equal signal strength (when they were less about a cm apart), but connecting it to the USRP made the signal strength drop considerably, and also required a tuning capacitor in series with the antenna. 
 
-\url{http://marcusjenkins.com/amateur-radio-2/a-signal-amplifier-module-for-hf/}
+For emulating PICC transmission (TX) through Load Modulation, we used a transistor and 2 resistors. Since the entire set-up was crude, their values were empirically determined, but the schematic can be seen in Figure \ref{fig:antennaschematic} and the final circuit in Figure \ref{fig:antennapic}.
 
-did not use coax, but SMA...
-
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{img/antennaschematic}
+  \caption{Antenna Schematic}
+  \label{fig:antennaschematic}
+\end{figure}
 
 \begin{figure}[h]
   \includegraphics[width=\linewidth]{img/antennapic}
-  \caption{The Antenna PCB}
+  \caption{Antenna PCB}
   \label{fig:antennapic}
 \end{figure}
 
 
+Though we discuss the antenna more in Section \ref{sec:evaluation}, we mention here that the range for eavesdropping on both reader and tag (which is further away) was only about 1-2 cm. To remedy this, we taped the antenna to the back of the RC522 reader, and the tag to be read to the front of it as shown in Figure \ref{fig:setup}. The picture taken is before the final PCB was made, and with a different NFC tag (still using the NTAG203 chip).
+
+
 \begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/antennaschematic}
-  \caption{The Antenna Schematic}
-  \label{fig:antennaschematic}
+  \includegraphics[width=\linewidth]{img/setup}
+  \caption{Measurement Setup}
+  \label{fig:setup}
 \end{figure}
 
 
-\subsection{Manual Analysis}
-data size when WAV
-audacity
+%%%% THIS IS FOR NEXT SECTION
+\begin{figure*}[!t]
+  \includegraphics[width=\textwidth]{img/annotated}
+  \caption{Annotated Recoding}
+  \label{fig:annotated}
+\end{figure*}
 
-pics 
+\subsection{Eavesdropping}
+\label{subsec:eavesdrop}
 
+For consistency/determinism, and easy testing/reproducibility, we initially recorded the interaction between the reader and the tag. This was achieved by using our home-made antenna connected to the USRP in the setup shown in Figure \ref{fig:setup}. The {\em envelope} of the signal is sufficient for our purposes, and for our Amplitude Modulated (AM) signal can be calculated as the absolute value of the signal. Recoding the envelope as a WAV file (using GNU Radio's \texttt{wavfile\_sink}) using a sample rate of $2,000,000$ samples/second and a 16-bit output, we get around 4 MB of data to be processed per second.
 
-\subsection{The Code}
-separate eavesdrop from transmit
-
-say that mostly worked on recordings to ensure determinism
-it was easy to include usrp, but strength/distance of antenna made very sensitive
-
-maybe subsections
-(ASK, Load Modulation, Manchester encoding, Modified Miller encoding)
-
-	signal detection 
-	the fsm	
-	crypto
-	transmission
-
-talk about code structure
+Opening the resulting audio file in Audacity Audio Editor, we see that for PCD transmissions the signal drops close to 0, while for PICC transmissions the subcarrier spikes hover at about 5-10\% above the average. An annotated example of the REQA and ATQA transmissions is shown in Figure \ref{fig:annotated}, where start/end and parity bits are shown in red. 
 
 
+Consequently, we can detect such transitions by having a moving window (say of length $2,000$) that keeps track of the average, and if the next value is below a certain threshold ($10\%$ of the average), consider it part of a reader transmission, and if it goes above a different threshold ($110\%$ of the average), consider it part of a card transmission. The transmission is considered over when the signal has returned to its average values for too long (currently $>25\ms$), and to ensure that the average does not drift, values above the high threshold and below the low threshold are not included in the moving average. The duration and values of these transitions are then passed on to the appropriate decoders through callbacks, so that the decoding runs in a background thread.
 
-coding of the demodulators (manchester, miller), the interactions, etc. i.e. high level code overview
-talk about how you take average of signal strength etc. note how they have different antennas usually
+The two decoders (one for Manchester encoding, and the other for the Modified Miller Encoding) are essentially Finite State Machines (FSM) that implement the specifications mentioned in Sections \ref{subsec:pcd} and \ref{subsec:picc}, allowing for some margin of transmission and measurement errors. For instance, the sequence $[(0, 3), (1, 11), (0, 3), (1, 16), (0, 3), (1, 6)]$ of (bit, \ms duration) pairs would be (approximately) split as:
 
-need for callbacks
-ideal to have clock recovery
+\begin{align}
+\nonumber [(0, 3), (1, 6.5)] \rightarrow& 0&\\
+\nonumber [(4.5, 1), (0, 3), (1, 1.5)]\rightarrow & 1&\\
+\nonumber [(1, 9.5)] \rightarrow & 0 &\\
+\nonumber [(1, 5), (0, 3), (1, 1.5)] \rightarrow & 1 &\\
+\nonumber  (1, 4.5) \rightarrow & \text{state=ONE\_FIRST\_STAGE} &
+\end{align}
 
+Having recovered all the bits (including parity, but discarding any start/end bits), and knowing whether the PCD or the PICC is doing the transmission, these bits can be interpreted with context in a more high-level FSM. This is the code that updates the internal state of the tag/reader when needed (e.g. to decrypt bits in the MIFARE Classic case), ensures that the parity is correct and transforms bits into bytes, and then based on the current state and the ``header" of the incoming bytes determines the command issued, interprets the bytes and checks any CRC if necessary. 
 
-speedups due to numpy, and removing function calls from 50sec/sec to 6secs/sec to 2secs/sec
+For unencrypted commands, this process is not crucial,\footnote{Indeed, the code will just print the plaintext bytes in case it cannot interpret them.} but for the Classic 1K, parsing the commands to get the UID, for instance, is of utmost importance as any deviations would result in ciphertext that cannot by decrypted. Specifically for regular data transmission decryption is straightforward, but the setup phase of the challenge-response protocol needs to be handled more subtly, especially because of nested authentications after the first authentication. Hence, while the actual cipher is abstracted away into a different class, it is the responsibility of the FSM to correctly call it.
 
+\subsection{Emulating}
+\label{subsec:emulate}
 
-explain TX 
-how to produce the encodings for the 2
-pictures comparing, also showing from real reader
+The FSM proved to be an important abstraction for the emulation part of the project because it centralized also encryption considerations. As a result, the emulated Reader and Tag only deal with plaintext messages (and not individual bits). Specifically, the Reader is set to perform identically to the Arduino's DumpInfo program, by performing the anticollision, and then reading all card blocks. The Tag is programmed to respond to the incoming commands, and its memory layout is set dynamically through files. For reproducibility (and especially when emulating the tag against a recording), the randomness used by the Tag and the Reader can also be fixed, but they can also be generated on-the-fly as needed, ensuring that this is not merely a replay attack.
 
+Because of this setup, it is possible to emulate both the reader and the tag simultaneously, without needing to go through encoding and modulation, but we have also coded the Manchester and Modified Miller encodings (in a reverse fashion to Section \ref{subsec:eavesdrop}), as well as modulation, which can be output to a WAV file for use without a USRP.
+
+Modulating the Reader's output is straightforward: it is enough to generate a 13.56 MHz (sine wave) carrier and output it, or output nothing for the ``pause" duration. Load Modulation of the Tag is more complicated, and is achieved by only outputting when the encoding is a logical 1 (for either 4.5\ms or 9\ms). Specifically, however, and as explained in Section \ref{subsec:picc} (Figure \ref{fig:manchester}), this is achieved by generating a 847.5 kHz subcarrier, multiplying by the bit to output, and the switching the load (in this case through the transistor) only for the amount of time for which the signal is positive.
 
 %----------------------------------------------------------------------------------------
 %	EVALUATION
@@ -372,11 +376,16 @@ pictures comparing, also showing from real reader
 \section{Evaluation}
 \label{sec:evaluation}
 
-compare to embedded solutions
 
+pictures comparing, also showing from real reader
+
+
+compare to embedded solutions
+speedups due to numpy, and removing function calls from 50sec/sec to 6secs/sec to 2secs/sec
 
 conclude that good, but not real time, also not synchronization on clock...
 clock recovery
+so no timeouts
 
 lack of newer cards eg desfire and ultralight ev
 
@@ -390,9 +399,17 @@ compare the 2 daughterboards
 talk about different cards (not just one)
 how it is easy to do ntag203
 
-bad antenna
+bad antenna. did not use coax, but SMA...
+briefly talk about failed amplifier (not LNA!)
 
-talk about touching/not touching reader
+\url{http://marcusjenkins.com/amateur-radio-2/a-signal-amplifier-module-for-hf/}
+
+
+talk about touching/not touching reader (antenna)
+
+talk about real usrp signal vs already touching (tag)
+
+example traces in appendix
 
 %----------------------------------------------------------------------------------------
 %	CONCLUSIONS
@@ -543,7 +560,7 @@ It is worth noting that the data blocks can be used for simple read/write operat
 
 \begin{table}[ht]
 \centering
-\caption{MIFARE CLASSIC 1K Plaintext Commands}
+\caption{MIFARE Classic 1K Plaintext Commands}
 \label{tab:cmd1k}
 \begin{tabular}{|l|l|l|}
 \hline

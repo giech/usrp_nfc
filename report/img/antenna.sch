@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="no" active="no"/>
@@ -6413,22 +6413,22 @@ Includes Amendment 1, October 1996&lt;p&gt;
 <sheets>
 <sheet>
 <plain>
-<text x="10.16" y="30.48" size="1.778" layer="97">GND</text>
+<text x="10.16" y="40.64" size="1.778" layer="97">GND</text>
 <text x="35.56" y="68.58" size="1.778" layer="97">L1</text>
 <text x="60.96" y="48.26" size="1.778" layer="97">C1</text>
-<text x="60.96" y="30.48" size="1.778" layer="97">RX</text>
-<text x="43.18" y="30.48" size="1.778" layer="97">TXR</text>
-<text x="20.32" y="30.48" size="1.778" layer="97">TXC</text>
+<text x="60.96" y="40.64" size="1.778" layer="97">RX</text>
+<text x="43.18" y="40.64" size="1.778" layer="97">TXR</text>
+<text x="22.86" y="40.64" size="1.778" layer="97">TXC</text>
 <text x="12.7" y="48.26" size="1.778" layer="97">R1</text>
 <text x="30.48" y="48.26" size="1.778" layer="97">Q1</text>
 <text x="27.94" y="63.5" size="1.778" layer="97">R2</text>
 </plain>
 <instances>
 <instance part="L1" gate="G$1" x="38.1" y="71.12" rot="R90"/>
-<instance part="OUT" gate="-1" x="66.04" y="25.4" rot="R270"/>
-<instance part="OUT" gate="-2" x="48.26" y="25.4" rot="R270"/>
-<instance part="OUT" gate="-3" x="27.94" y="25.4" rot="R270"/>
-<instance part="OUT" gate="-4" x="7.62" y="25.4" rot="R270"/>
+<instance part="OUT" gate="-1" x="66.04" y="40.64" rot="R270"/>
+<instance part="OUT" gate="-2" x="48.26" y="40.64" rot="R270"/>
+<instance part="OUT" gate="-3" x="27.94" y="40.64" rot="R270"/>
+<instance part="OUT" gate="-4" x="7.62" y="40.64" rot="R270"/>
 <instance part="C1" gate="G$1" x="66.04" y="50.8"/>
 <instance part="Q1" gate="G$1" x="27.94" y="50.8" rot="MR90"/>
 <instance part="R1" gate="G$1" x="27.94" y="60.96"/>
@@ -6449,7 +6449,7 @@ Includes Amendment 1, October 1996&lt;p&gt;
 <pinref part="OUT" gate="-2" pin="S"/>
 <wire x1="48.26" y1="60.96" x2="48.26" y2="53.34" width="0.1524" layer="91"/>
 <pinref part="R1" gate="G$1" pin="2"/>
-<wire x1="48.26" y1="53.34" x2="48.26" y2="27.94" width="0.1524" layer="91"/>
+<wire x1="48.26" y1="53.34" x2="48.26" y2="43.18" width="0.1524" layer="91"/>
 <wire x1="33.02" y1="60.96" x2="48.26" y2="60.96" width="0.1524" layer="91"/>
 <junction x="48.26" y="60.96"/>
 <pinref part="Q1" gate="G$1" pin="C"/>
@@ -6461,8 +6461,7 @@ Includes Amendment 1, October 1996&lt;p&gt;
 <segment>
 <pinref part="C1" gate="G$1" pin="2"/>
 <pinref part="OUT" gate="-1" pin="S"/>
-<wire x1="66.04" y1="45.72" x2="66.04" y2="27.94" width="0.1524" layer="91"/>
-<label x="60.96" y="25.4" size="1.778" layer="95"/>
+<wire x1="66.04" y1="45.72" x2="66.04" y2="43.18" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$2" class="0">
@@ -6473,7 +6472,7 @@ Includes Amendment 1, October 1996&lt;p&gt;
 <wire x1="7.62" y1="71.12" x2="7.62" y2="60.96" width="0.1524" layer="91"/>
 <pinref part="R2" gate="G$1" pin="1"/>
 <wire x1="7.62" y1="60.96" x2="7.62" y2="53.34" width="0.1524" layer="91"/>
-<wire x1="7.62" y1="53.34" x2="7.62" y2="27.94" width="0.1524" layer="91"/>
+<wire x1="7.62" y1="53.34" x2="7.62" y2="43.18" width="0.1524" layer="91"/>
 <wire x1="10.16" y1="53.34" x2="7.62" y2="53.34" width="0.1524" layer="91"/>
 <junction x="7.62" y="53.34"/>
 <pinref part="R1" gate="G$1" pin="1"/>
@@ -6485,7 +6484,7 @@ Includes Amendment 1, October 1996&lt;p&gt;
 <segment>
 <pinref part="OUT" gate="-3" pin="S"/>
 <pinref part="Q1" gate="G$1" pin="B"/>
-<wire x1="27.94" y1="27.94" x2="27.94" y2="48.26" width="0.1524" layer="91"/>
+<wire x1="27.94" y1="43.18" x2="27.94" y2="48.26" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$4" class="0">
