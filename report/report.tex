@@ -58,12 +58,12 @@
 \renewenvironment{longtable}{\rowcolors{2}{white}{lightgray}\oldlongtable} {
 \endoldlongtable}
 
-
 %----------------------------------------------------------------------------------------
 %	MISC
 %----------------------------------------------------------------------------------------
 
 \usepackage{subcaption}
+\usepackage{pgf-umlsd}
 \newcommand{\ms}{\ensuremath{\mu s} }
 
 
@@ -135,111 +135,108 @@ Finally, given the widespread availability of NFC-enabled mobile devices, resear
 
 The terms Radio Frequency Identification (RFID), Near Field Communication (NFC), contactless smartcards, proximity cards and vicinity cards are often used interchangeably, but they are covered by different standards and concern different parts of the radio spectrum. In this project, we looked at the ISO/IEC 14443 standard, with physical characteristics defined in \cite{iso144431}, modulation and encoding in \cite{iso144432}, initialization and anticollision in \cite{iso144433} and transmission protocols in \cite{iso144434}.
 
-Specifically, we focus on {\bf Type A} communications, whose {\bf carrier frequency} is $f_c=13.56$ MHz. The reader -- or {\bf Proximity Coupling Device (PCD)} -- communicates with the card -- or {\bf Proximity Integrated Circuit Card (PICC)} -- through {\bf 100\% Amplitude Shift Keying (ASK)}, with data using the {\bf Modified Miller} encoding (Section \ref{subsec:pcd}). The communication from tag to reader utilizes {\bf Load Modulation} with a {\bf subcarrier frequency} of $f_s=f_c/16=847.5$ kHz, using {\bf Manchester} encoding (Section \ref{subsec:picc}), and both transmit 106 kbit/s. 
+Specifically, we focus on Type A communications, whose carrier frequency is $f_c=13.56$ MHz. The reader -- or Proximity Coupling Device (PCD) -- communicates with the card -- or Proximity Integrated Circuit Card (PICC) -- through 100\% Amplitude Shift Keying (ASK), with data using the Modified Miller encoding (Section \ref{subsec:pcd}). The communication from tag to reader utilizes Load Modulation with a subcarrier frequency of $f_s=f_c/16=847.5$ kHz, using Manchester encoding (Section \ref{subsec:picc}), and both transmit at 106 kbit/s. 
 
-Because the carrier frequency is $f_c=13.56$ MHz, the wavelength is $c/f_c\approx22$ meters, making it impossible to deploy antennas that would fit in a card-size form-factor. Additionally, because the cards are {\bf passive} (i.e. do not have their own power source), both the communication and the power source are achieved through {\bf inductive coupling} from the PCD's antenna loop to the PICC's antenna loop. We discuss the high-level protocol in Section \ref{subsec:protocol}, and the MIFARE Classic encryption algorithm in Section \ref{subsec:crypto1}.
+Because the carrier frequency is $f_c=13.56$ MHz, the wavelength is $c/f_c\approx22$ meters, making it impossible to deploy antennas that would fit in a card-size form-factor. Additionally, because the cards are passive (i.e. do not have their own power source), both the communication and the power source are achieved through inductive coupling from the PCD's antenna loop to the PICC's antenna loop. We discuss the high-level protocol in Section \ref{subsec:protocol}, and the MIFARE Classic encryption algorithm in Section \ref{subsec:crypto1}.
 
 \subsection{PCD Transmissions}
 \label{subsec:pcd}
 
-Amplitude Shift Keying (ASK) of depth $X$\% is a form of digital modulation which specifies that if the amplitude of the signal representing a digital $1$ is equal to $A$ and the amplitude of the signal representing a digital $0$ is equal to $B$, then $X=\frac{A-B}{A+B}$, as showing in Figure \ref{fig:ask}. Specifically, for 100\% ASK, no signal is sent at all during a digital $0$, indicating that such periods must be very brief, since the PICC needs to keep charge (using a capacitor) for the period of silence.
+Amplitude Shift Keying (ASK) of depth $X$\% is a form of digital modulation which specifies that if the amplitude of the signal representing a digital $1$ is equal to $A$ and the amplitude of the signal representing a digital $0$ is equal to $B$, then $X=\frac{A-B}{A+B}$ \cite{atmel}, as shown in Figure \ref{fig:ask}. Specifically, for 100\% ASK, no signal is sent at all during a digital $0$ (i.e. $B=0$), indicating that such periods must be very brief, since the PICC needs to keep charge (using a capacitor) for the period of silence.
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/ask}
-  \caption{Amplitude Shift Keying (ASK) \cite{atmel}}
+  \caption{Amplitude Shift Keying (ASK) Peaks}
   \label{fig:ask}
 \end{figure}
 
 This is achieved through the Modified Miller Encoding, which ensures that there is no period of more than 3\ms of silence (``pause"). Specifically, every bit is represented as a (combination of) signals lasting a total of $t_b=128/f_c\approx9.44\ms$. The encoding (show in Figure \ref{fig:miller}) is as follows:
 \begin{itemize}[noitemsep] 
-\item A 1 is encoded as an unmodulated signal for $t_b/2\approx 4.72 \ms$, followed by a period of silence for 3\ms, followed by an unmodulated signal for $t_b/2-3\approx 1.72\ms$
-\item A 0 after a 0 is encoded as a silence period for 3\ms followed by an unmodulated signal for $t_b-3\approx 6.44\ms$
-\item A 0 after a 1 is encoded as an unmodulated signal for a period of $t_b\approx9.44\ms$
+\item 1 is encoded as an unmodulated signal for $t_b/2\approx 4.72 \ms$, followed by a period of silence for 3\ms, followed by an unmodulated signal for $t_b/2-3\approx 1.72\ms$
+\item 0 after a 0 is encoded as a silence period for 3\ms followed by an unmodulated signal for $t_b-3\approx 6.44\ms$
+\item 0 after a 1 is encoded as an unmodulated signal for a period of $t_b\approx9.44\ms$
 \item To indicate the beginning and the end of a transmission, a 0 bit is inserted at both the start and the end
 \end{itemize}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/miller}
-  \caption{Miller Encoding at 100\% ASK \cite{atmel}}
+  \caption{Modified Miller Encoding at 100\% ASK}
   \label{fig:miller}
 \end{figure}
 
-In practice, however, because of hardware imperfections, the pause is not perfect, but needs to comply with the requirements shown in Figure \ref{fig:pause}. As a result, the modulated carrier for the encodings resembles Figure \ref{fig:miller2}.
+In practice, however, because of hardware imperfections, the pause is not perfect, but needs to comply with the requirements shown in Figure \ref{fig:pause}. As a result, the modulated carrier for the encodings resembles Figure \ref{fig:miller2} which was recorded with our oscilloscope.
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/pause}
-  \caption{Real Pause Requirements \cite{iso144432}}
+  \caption{Miller Encoding Pause Requirements \cite{iso144432}}
   \label{fig:pause}
 \end{figure}
 
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/miller2}
-  \caption{Realistic Miller Encoding \cite{mifare}}
+  \caption{Modified Miller Encoding from PCD}
   \label{fig:miller2}
 \end{figure}
 
 \subsection{PICC Transmissions}
 \label{subsec:picc}
 
-As mentioned above, the tag does not have sufficient power for active transmissions. Consequently, the PICC achieves data transmission passively, by changing its {\em load}, which can be inferred as a voltage drop on the PCD, hence the term {\bf Load Modulation}. Switching the load generates a {\bf subcarrier}, which has a frequency $f_s=f_c/16=847.5$ kHz. 
+As mentioned above, the tag does not have sufficient power for active transmissions. Consequently, the PICC achieves data transmission passively, by changing its {\em load}, which can be inferred as a voltage drop on the PCD, hence the term Load Modulation. Switching the load generates a subcarrier, which has a frequency $f_s=f_c/16=847.5$ kHz. 
 
-The bits are then encoded using {\bf On-Off Keying (OOK)} or {\bf Manchester Encoding} as follows, with a total duration also equal to $t_b\approx9.44\ms$, which also equals 8 periods of the subcarrier, also shown in Figures \ref{fig:manchester} and \ref{fig:manchester2}:
+The bits are then encoded using On-Off Keying (OOK) --- or Manchester Encoding --- as follows, with a total duration also equal to $t_b\approx9.44\ms$, which also equals 8 periods of the subcarrier, also shown in Figure \ref{fig:manchester}:
 
 \begin{itemize}[noitemsep] 
-\item A 1 is encoded by modulating the subcarrier for the {\em first} half ($=t_b/2\approx4.72\ms$) of the bit duration
-\item A 0  is encoded by modulating the subcarrier for the {\em second} half ($=t_b/2\approx4.72\ms$) of the bit duration
+\item 1 is encoded by modulating the subcarrier for the {\em first} half ($=t_b/2\approx4.72\ms$) of the bit duration
+\item 0  is encoded by modulating the subcarrier for the {\em second} half ($=t_b/2\approx4.72\ms$) of the bit duration
 \item A logical 1 starts the transmission
 \item No modulation signifies the end of a transmission
 \end{itemize}
 
 
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/manchester2}
+\begin{figure}[tp]
+  \includegraphics[width=\linewidth]{img/manchester}
   \caption{Manchester Encoding with Load Modulation \cite{mifare}}
   \label{fig:manchester}
 \end{figure}
 
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/manchester}
-  \caption{Envelope of Load Modulation \cite{atmel}}
-  \label{fig:manchester2}
-\end{figure}
 
 \subsection{The Protocol}
 \label{subsec:protocol}
 
 Though the ISO/IEC 14443A protocol is general, we will focus on a few key aspects that are relevant to our discussion. As a result, we will refer the reader to \cite{iso144433} for more details such as timing requirements.
 
-First of all, it is worth noting that each byte is {\bf ordered} from the Least Significant Bit (LSB) to the Most Significant Bit (MSB), and that each byte is followed by an {\bf odd parity bit}, meaning that an even number of high bits (ones) is followed by another high bit (one), whereas an odd number of ones is followed by a low bit (zero). For example, the byte 0x3F is encoded as $1111\ 1100\ 1$.
+First of all, it is worth noting that each byte is ordered from the Least Significant Bit (LSB) to the Most Significant Bit (MSB), and that each byte is followed by an odd parity bit, meaning that an even number of high bits (ones) is followed by another high bit (one), whereas an odd number of ones is followed by a low bit (zero). For example, the byte 0x3F is encoded as $1111\ 1100\ 1$.
 
-The PCD signifies that it is waiting to read tags by repeatedly sending a {\bf REQA (0x26)} or a {\bf WUPA (0x52)}, where the ``A" signifies that type A protocol is used. The difference between the REQA request and the WUPA wake-up request is that the latter also wakes up PICCs that were previously asked to HALT. Unlike all other commands, they are sent using a {\em short frame} that only consists of 7 bits, and which does not include a parity bit. As a result, the REQA command (including the beginning and end transmission zero bits) is sent as the sequence of bits $0\ 0110\ 010\ 0$.
+The PCD signifies that it is waiting to read tags by repeatedly sending a REQA (0x26) or a WUPA (0x52), where the ``A" signifies that type A protocol is used. The difference between the REQA request and the WUPA wake-up request is that the latter also wakes up PICCs that were previously asked to HALT. Unlike all other commands, they are sent using a {\em short frame} that only consists of 7 bits, and which does not include a parity bit. As a result, the REQA command (including the beginning and end transmission zero bits) is sent as the sequence of bits $0\ 0110\ 010\ 0$.
 
-The standard has also defined {\bf Anticollision} and {\bf Selection} phases before the transmission of actual data which are used to ensure the non-interference from multiple tags and the correct selection of the tag. However, we only discuss them in the context of the MIFARE cards in Appendix \ref{app:mifare}, since they are not necessary for understanding the rest of this report. 
+The standard has also defined Anticollision and Selection phases before the transmission of actual data which are used to ensure the non-interference from multiple tags and the correct selection of the tag. However, we only discuss them in the context of the MIFARE cards in Appendix \ref{app:mifare}, since they are not necessary for understanding the rest of this report. 
 
-Finally, we mention that to detect errors with longer transmissions, for some requests and responses a {\bf Cyclic Redundancy Check (CRC)} is used on the transmitted bytes (but excluding start/end and parity bits). The polynomial used is $x^{16}+x^{12}+x^5+1$, with a starting value of 0x6363, under the assumption that ``FF0 shall be the leftmost flip-flop where data is shifted in  [and] FF15 shall be the rightmost flip-flop where data is shifted out" \cite{iso144433}. For example, the {\bf HALT/HLTA} command uses 2 bytes (0x50 0x00) followed by the two CRC bytes which can be calculated as 0x57 0xCD.
+Finally, we mention that to detect errors with longer transmissions, for some requests and responses a Cyclic Redundancy Check (CRC) is used on the transmitted bytes (but excluding start/end and parity bits). The polynomial used is $x^{16}+x^{12}+x^5+1$, with a starting value of 0x6363, under the assumption that ``FF0 shall be the leftmost flip-flop where data is shifted in  [and] FF15 shall be the rightmost flip-flop where data is shifted out" \cite{iso144433}. For example, the HALT/HLTA command uses 2 bytes (0x50 0x00) followed by the two CRC bytes which can be calculated as 0x57 0xCD.
 
 \subsection{MIFARE Classic 1K Encryption}
 \label{subsec:crypto1}
 
-Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}, the MIFARE Classic 1K uses a proprietary cryptographic protocol called CRYPTO1 \cite{classic1k}. The details of the protocol were not made publicly available, with the MIFARE datasheets only broadly explaining the 3-pass protocol \cite{classic1k}. Each {\bf sector} (equal to 4 {\bf blocks} of 16 bytes each) has two 6-byte keys ({\bf Key A and B}), which on delivery are set to [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF] (but can be changed later on a per-sector basis). Each authentication happens with one of the two keys chosen by the reader, and can only be used to access a specific sector. Each sector contains one block (the {\bf sector trailer}) which contains the two keys and some {\bf access bits} which determine the allowed operations for the 4 blocks (See Appendix \ref{app:classic1k} for more details).
+Even though the MIFARE Ultralight is ISO/IEC 14443 A compliant \cite{ultralight}, the MIFARE Classic 1K uses a proprietary cryptographic protocol called CRYPTO1 \cite{classic1k}. The details of the protocol were not made publicly available, with the MIFARE datasheets only broadly explaining the 3-pass protocol \cite{classic1k}. Each sector (equal to 4 blocks of 16 bytes each) has two 6-byte keys (Key A and B), which on delivery are set to [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF] (but can be changed later on a per-sector basis). Each authentication happens with one of the two keys chosen by the reader, and can only be used to access a specific sector. Each sector contains one block (the sector trailer) which contains the two keys and some access bits which determine the allowed operations for the 4 blocks (See Appendix \ref{app:classic1k} for more details).
 
 
-The PCD indicates to the PICC that it wants to authenticate through a command indicating which key to be used and what address to use. As shown in Figures \ref{fig:auth1} and \ref{fig:auth2}, the three-pass scheme consists of a 4 byte challenge sent from the PICC to the PCD  (Token RB), an 8-byte challenge and response (of 4 bytes each) send from the PCD to the PICC (Token AB) and a response from the PICC to the PCD (Token BA), if the reader's encryption was correct. After the first challenge (Token RB), {\bf all} traffic is encrypted, even subsequent authentications, which leads to a weakness known as {\bf nested authentication} \cite{classicvulnerabilities}.
+The PCD indicates to the PICC that it wants to authenticate through a command indicating which key to be used and what address to use. As shown in Figure \ref{fig:auth}, the three-pass scheme consists of a 4 byte challenge sent from the PICC to the PCD  (Token RB), an 8-byte challenge and response (of 4 bytes each) send from the PCD to the PICC (Token AB) and a response from the PICC to the PCD (Token BA), if the reader's encryption was correct. After the first challenge (Token RB), {\bf all} traffic is encrypted, even subsequent authentications, which leads to a weakness known as nested authentication \cite{classicvulnerabilities}.
 
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/auth1}
-  \caption{Authentication Part 1 \cite{classic1k}}
-  \label{fig:auth1}
+\begin{figure}
+\centering
+\begin{sequencediagram}
+\newinst{pcd}{PCD}
+\newinst[3.3]{picc}{PICC}
+\mess{pcd}{AUTH[A/B] [ADDR] CRC[0-1]}{picc}
+\mess{picc}{Token RB[0-3]}{pcd}
+\mess{pcd}{Token AB[0-7]}{picc}
+\mess{picc}{Token BA[0-3]}{pcd}
+\end{sequencediagram}
+\caption{MIFARE Classic Authentication Protocol}
+\label{fig:auth}
 \end{figure}
 
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/auth2}
-  \caption{Authentication Part 2 \cite{classic1k}}
-  \label{fig:auth2}
-\end{figure}
-
-Though we discuss the encryption algorithm in greater detail in Appendix \ref{app:crypto1}, it is worth noting a few things based on the research in \cite{crypto1, classicvulnerabilities}. The CRYPTO1 encryption scheme is a stream cipher which consists of a 48-bit (equal to the key length) Linear Feedback Shift Register (LFSR) and a non-linear {\bf filter} function \cite{crypto1}. The encryption incorporates both the tag's Unique Identifier (UID) and the random nonce RB, which however is only generated using a 16-bit LFSR. Nonetheless, both challenge responses only depend on the tag's nonce (and not the reader's nonce or the UID), and use the same LFSR as the Random Number Generator (RNG). 
+Though we discuss the encryption algorithm in greater detail in Appendix \ref{app:crypto1}, it is worth noting a few things based on the research in \cite{crypto1, classicvulnerabilities}. The CRYPTO1 encryption scheme is a stream cipher which consists of a 48-bit (equal to the key length) Linear Feedback Shift Register (LFSR) and a non-linear filter function \cite{crypto1}. The encryption incorporates both the tag's Unique Identifier (UID) and the random nonce RB, which however is only generated using a 16-bit LFSR. Nonetheless, both challenge responses only depend on the tag's nonce (and not the reader's nonce or the UID), and use the same LFSR as the Random Number Generator (RNG). 
 
 What is more, the parity bits are also encrypted (making the MIFARE Classic 1K {\em incompatible} with the ISO 14443 protocol), and ``the bit of keystream used to encypt the parity bits is reused to encrypt the next bit of plaintext" \cite{classicvulnerabilities}. This vulnerability, in combination with the nested authentication mentioned above (which causes the token RB to also be encrypted) leaks data which can be used to guess the nonce or to reveal the secret key.
 
@@ -251,88 +248,75 @@ What is more, the parity bits are also encrypted (making the MIFARE Classic 1K {
 \section{Implementation}
 \label{sec:implementation}
 
-In this section we discuss our setup and methodology (Section \ref{subsec:setup}), the design of the antenna used (Section \ref{subsec:antenna}), as well as the approach used for decoding transmissions (Section \ref{subsec:eavesdrop}) and for emulating them (Section \ref{subsec:emulate}).
+In this section we discuss our setup and methodology (Section \ref{subsec:setup}), the design of the antenna (Section \ref{subsec:antenna}), as well as our approach for decoding transmissions (Section \ref{subsec:eavesdrop}) and for emulating them (Section \ref{subsec:emulate}).
 
 \subsection{Setup and Methodology}
 \label{subsec:setup}
 
-For this project, we used Ettus Research's Universal Software Radio Peripheral (USRP) N210 \cite{usrp}, in combination with the BasicRX/TX and LFRX/TX daughterboards \cite{daughterboards}, both of which cover the 13.56 MHz frequency. The USRP has become the de-facto SDR platform in combination, and also allows custom code to be written on its FPGA, which we did not pursue in this project. Instead, all signal processing was done on a laptop, using Python and the GNU Radio toolkit/framework, which is easily extensible and provides many building blocks (``modules") that can be incorporated into new designs.
+For this project, we use Ettus Research's Universal Software Radio Peripheral (USRP) N210 \cite{usrp}, in combination with the BasicRX/TX and LFRX/TX daughterboards \cite{daughterboards}, both of which cover 13.56 MHz. The USRP has become the de-facto SDR platform, and also allows custom code to be written on its FPGA, which we did not pursue in this project. Instead, all signal processing is done on a laptop, using Python and the GNU Radio toolkit/framework, which is easily extensible and provides many building blocks (``modules") that can be incorporated into new designs.
 
-For lack of a better alternative, the laptop used is a Samsung NP900X4C with an Intel i5-3317U @ 1.7 GHz and 8 GB of RAM, but the operating system used (Kali Linux 1.1.0a) was booted off a 16 GB USB 3.0 Lexar JumpDrive. Moreover, due to the lack of an Ethernet port, the USRP was connected to the laptop on a Plugable USB3-E1000 USB 3.0 Gigabit Ethernet Adapter.
-
-
-To measure signals accurately, we used a Rigol DS2302A digital oscilloscope with two 300 MHz channels \cite{rigol}. The actual reader was an RFID-RC522 module using the MFRC522 chip by NXP Semiconductors \cite{mfrc522} connected to an Arduino UNO using the Serial Peripheral Interface (SPI) and the DumpInfo example at \cite{library}. A schematic is found in Figure \ref{fig:rc522schematic}, while Figure \ref{fig:rc522pic} is a picture of the module, where the test pad for the reception (RX) part of the antenna is highlighted.
+The laptop used is a Samsung NP900X4C with an Intel i5-3317U @ 1.7 GHz and 8 GB of RAM, but the operating system (Kali Linux 1.1.0a) is booted off a 16 GB USB 3.0 Lexar JumpDrive. Moreover, due to the lack of an Ethernet port, the USRP is connected to the laptop on a Plugable USB3-E1000 USB 3.0 Gigabit Ethernet Adapter.
 
 
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/rc522schematic}
-  \caption{RC522 Schematic \url{http://img.alibaba.com/img/pb/082/266/824/824266082_485.jpg}}
-  \label{fig:rc522schematic}
-\end{figure}
+To measure signals accurately, we use a Rigol DS2302A digital oscilloscope with two 300 MHz channels \cite{rigol}. The actual PCD is an RFID-RC522 module using the MFRC522 chip by NXP Semiconductors \cite{mfrc522} connected to an Arduino UNO using the Serial Peripheral Interface (SPI) and the DumpInfo example at \cite{library}. Figure \ref{fig:rc522} shows the module along with the highlighted test pad for the reception (RX) part of the antenna, which was connected to the oscilloscope to test reception.
 
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/rc522pic}
-  \caption{RC522 RX Test Pad}
-  \label{fig:rc522pic}
+\begin{figure}[tp]
+  \includegraphics[width=\linewidth]{img/rc522}
+  \caption{RC522 Module with RX Test Pad}
+  \label{fig:rc522}
 \end{figure}
 
 
-The types of tags/cards used are shown in Figure \ref{fig:cards} and are a Classic 1K card, and an NTAG203 \cite{ntag203}, which is compatible with the Ultralight. The NTAG203 is actually larger and has a different memory layout, but the Arduino library used does not distinguish between the two, so only 16 out of the 42 pages are revealed. It is important to note that although we only two {\em types} of cards were used, more than one actual card per type was tried with identical results.
-
-\begin{figure}[h]
-  \includegraphics[width=\linewidth]{img/cards}
-  \caption{Cards/Tags Used in the Experiment}
-  \label{fig:cards}
-\end{figure}
+The types of cards used are Classic 1Ks and NTAG203s \cite{ntag203}, which are compatible with the Ultralight. The NTAG203 is actually larger and has a different memory layout, but the Arduino library does not distinguish between the two, so only 16 out of 42 pages are revealed. It is important to note that although we only use two {\em types} of cards, more than one actual card per type is tried with identical results.
 
 \subsection{The Antenna}
 \label{subsec:antenna}
 
-Much research has been conducted into making RFID-type antennas work well and up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags themselves \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we made our own. According to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
+Much research has been conducted into making RFID-type antennas work well and up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we make our own. Specifically according to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
 
 \begin{equation}
 \label{eq:inductance}
 \hfill L [nH] = \frac{24.6 \cdot N^2\cdot D[cm]}{1+2.75\cdot\frac{s[cm]}{D[cm]}}\hspace*{\fill}
 \end{equation}
 
-Measuring the signal strength of the wire loop and of the RC522 RX test pad directly on the oscilloscope resulted in equal signal strength (when they were less about a cm apart), but connecting it to the USRP made the signal strength drop considerably, and also required a tuning capacitor in series with the antenna. 
+The signal strengths of the wire loop and of the RC522 RX test pad directly are approximately equal when they are less about a cm apart, but connecting our antenna to the USRP results in a considerable signal strength drop, and requires a tuning capacitor in series with the antenna. For emulating PICC transmissions (TX) through Load Modulation, we use a transistor and 2 resistors. Their values are empirically determined, but the high-level schematic is included in Figure \ref{fig:antennaschematic}, with the final circuit in Figure \ref{fig:antennapic}.
 
-For emulating PICC transmission (TX) through Load Modulation, we used a transistor and 2 resistors. Since the entire set-up was crude, their values were empirically determined, but the schematic can be seen in Figure \ref{fig:antennaschematic} and the final circuit in Figure \ref{fig:antennapic}.
-
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/antennaschematic}
-  \caption{Antenna Schematic}
+  \caption{Antenna Schematic for RX and TX (Card/Reader)}
   \label{fig:antennaschematic}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/antennapic}
-  \caption{Antenna PCB}
+  \caption{Final Antenna PCB}
   \label{fig:antennapic}
 \end{figure}
 
 
-Though we discuss the antenna more in Section \ref{sec:evaluation}, we mention here that the range for eavesdropping on both reader and tag (which is further away) was only about 1-2 cm. To remedy this, we taped the antenna to the back of the RC522 reader, and the tag to be read to the front of it as shown in Figure \ref{fig:setup}. The picture taken is before the final PCB was made, and with a different NFC tag (still using the NTAG203 chip).
+Though we discuss the antenna more in Section \ref{sec:evaluation}, we mention that the range for eavesdropping on both reader and tag is only about 1-2 cm. To remedy this, we tape the antenna to the back of the RC522 reader, and the tag to be read to the front of it as shown in Figure \ref{fig:setup}.
 
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/setup}
-  \caption{Measurement Setup}
+  \caption{Setup: PICC and Antenna Attached to PCD}
   \label{fig:setup}
 \end{figure}
 
 
-%%%% FOR NEXT SECTION
+%%%% FOR \ref{subsec:eavesdrop}
 \begin{figure*}[!t]
   \includegraphics[width=\textwidth]{img/annotated}
-  \caption{Annotated Recoding}
+  \caption{Annotated Recoding of PCD (REQA) and PICC (ATQA) Transmissions. Start/End/Parity Bits Shown in Red}
   \label{fig:annotated}
 \end{figure*}
+
+
 
 \subsection{Eavesdropping}
 \label{subsec:eavesdrop}
 
-For consistency/determinism, and easy testing/reproducibility, we initially recorded the interaction between the reader and the tag. This was achieved by using our home-made antenna connected to the USRP in the setup of Figure \ref{fig:setup}. The {\em envelope} of the signal is sufficient for our purposes, and for our Amplitude Modulated (AM) signal can be calculated as the absolute value of the signal. Recoding the envelope as a WAV file (using GNU Radio's \texttt{wavfile\_sink}) using a sample rate of $2,000,000$ samples/second and a 16-bit output, we get around 4 MB of data to be processed per second.
+For consistency/determinism, and easy testing/reproducibility, we record the interaction between the reader and the tag. This is achieved by using our home-made antenna connected to the USRP in the setup of Figure \ref{fig:setup}. The {\em envelope} of the signal is sufficient for our purposes, and for our Amplitude Modulated (AM) signal can be calculated as the absolute value of the signal. Recoding the envelope as a WAV file (using GNU Radio's \texttt{wavfile\_sink}) using a sample rate of $2,000,000$ samples/second and a 16-bit output, results in 4 MB of data to be processed per second.
 
 Opening the resulting audio file in Audacity Audio Editor, we see that for PCD transmissions the signal drops close to 0, while for PICC transmissions the subcarrier spikes hover at about 5-10\% above the average. An annotated example of the REQA and ATQA transmissions is shown in Figure \ref{fig:annotated}, where start/end and parity bits are shown in red. 
 
@@ -353,30 +337,42 @@ Having recovered all the bits (including parity, but discarding any start/end bi
 
 For unencrypted commands, this process is not crucial,\footnote{The code will just print the plaintext bytes for unknown commands.} but for the Classic 1K, parsing the commands to get the UID, for instance, is of utmost importance as any deviations would result in ciphertext that cannot by decrypted. Specifically for regular data transmission decryption is straightforward, but the setup phase of the challenge-response protocol needs to be handled more subtly, especially because of nested authentications after the first authentication. Hence, while the actual cipher is abstracted away into a different class, it is the responsibility of the FSM to correctly call it.
 
+A (simplified) high-level overview of the eavesdropping code is found in the top of Figure \ref{fig:code} summarizing our previous discussion: the audio/USRP source is passed to a ``transition sink" which detects amplitude transitions and passes them to a background thread which dispatches the Manchester and Miller decoders turning transitions into bits. These bits are then converted into packets, and are passed to the FSM which deciphers them and decodes them into MIFARE commands.
 
-%%%%  FOR NEXT SECTION
-\begin{figure*}[ht]
-  \includegraphics[width=\linewidth]{img/usrpreal}
-  \caption{Signal Received when Approaching Tag}
-  \label{fig:usrpreal}
+
+\begin{figure}[tp]
+  \includegraphics[width=\linewidth]{img/code}
+  \caption{High-Level Code Overview. Lines Represent Information Flow, with Dashes Being Optional}
+  \label{fig:code}
+\end{figure}
+
+
+
+%%%%  FOR \ref{subsec:emulate}
+\begin{figure*}[tp]
+  \includegraphics[width=\linewidth]{img/usrpreset}
+  \caption{Signal Received with Fixed Tag and Arduino Reset: PICC (PCD) Transmissions Above (Below) the Average}
+  \label{fig:usrpreset}
 \end{figure*}
 
-
-\begin{figure*}[ht]
-  \includegraphics[width=\linewidth]{img/usrpreset}
-  \caption{Signal Received with Fixed Tag and Arduino Reset}
-  \label{fig:usrpreset}
+\begin{figure*}[tp]
+  \includegraphics[width=\linewidth]{img/usrpreal}
+  \caption{Signal Received when Approaching Tag: Weak (Close to Average) PICC Transmissions}
+  \label{fig:usrpreal}
 \end{figure*}
 
 
 \subsection{Emulating}
 \label{subsec:emulate}
 
-The FSM proved to be an important abstraction for the emulation part of the project because it centralized all encryption considerations. As a result, the emulated Reader and Tag only deal with plaintext messages (and not individual bits). Specifically, the Reader is set to perform identically to the Arduino's \texttt{DumpInfo} program, by performing the anticollision, and then reading all card blocks. The Tag is programmed to respond to the incoming commands, and its memory layout is set dynamically through files. For reproducibility (and especially when emulating the tag against a recording), the randomness used by the Tag and the Reader can also be fixed, but it can also be generated on-the-fly as needed, ensuring that this is not merely a replay attack.
+The FSM is also crucial for the PCD and PICC emulation, since it centralizes all encryption considerations. As a result, the emulated Reader and Tag only deal with plaintext messages (and not individual bits). Specifically, the Reader is set to perform identically to the Arduino \texttt{DumpInfo} program, by performing the anticollision, and then reading all card blocks. The Tag is programmed to respond to the incoming commands, and its memory layout is set dynamically through files. For reproducibility (and especially when emulating against a recording), the Tag and Reader randomness can also be fixed, but it can also be generated on-the-fly as needed, ensuring that this is not merely a replay attack.
 
 Because of this setup, it is possible to emulate both the reader and the tag simultaneously, without needing to go through encoding and modulation, but we have also coded the Manchester and Modified Miller encodings (in a reverse fashion to Section \ref{subsec:eavesdrop}), as well as modulation, so that they can be output to a WAV file for use without a USRP.
 
 Modulating the Reader's output is straightforward: it is enough to generate a 13.56 MHz (sine wave) carrier and output it, or output nothing for the ``pause" duration. Load Modulation of the Tag is more complicated, and is achieved by only outputting when the encoding is a logical 1 (for either 4.5\ms or 9$\mu s$). Specifically, however, and as explained in Section \ref{subsec:picc} (Figure \ref{fig:manchester}), this is achieved by generating a 847.5 kHz subcarrier, multiplying by the bit to output, and then switching the load (in this case through the transistor) only for the amount of time for which the signal is positive.
+
+The simplified high-level overview of the emulation code can be found in the bottom of Figure \ref{fig:code}. After the eavesdropping code has decoded incoming transmission, the FSM passes the commands to the Tag and/or Reader which determine the suitable response and pass it back to the FSM. If the command is to be output somewhere, it is Manchester/Miller encoded, and then passed on to a block which converts bit durations into samples. These samples are then modulated with the suitable carrier and output into a WAV file/the USRP.
+
 
 %----------------------------------------------------------------------------------------
 %	EVALUATION
@@ -391,31 +387,29 @@ In this section, we take a critical look at our approach for eavesdropping (Sect
 \subsection{Eavesdropping}
 \label{subsec:evaleavesdrop}
 
-First of all, it is worth mentioning that with recorded reader-tag communications, the eavesdropping code behaves predictably and always correctly decodes the messages. However, at least initially, the code required 50 seconds of processing per 1 second of data. This was due to the fact that incoming messages in GNU Radio Python code are stored as \texttt{NumPy} arrays which do not support efficient iteration. Converting them to a list before iteration resulted in a $10\times$ improvement, and assigning local names to function calls resulted in an additional $2.5\times$ improvement, for a processing cost of about 2.2 seconds per 1 second of data. This is still not real time, but given the unusual setup which relies heavily on the USB bus, this performance is acceptable given the convenience of prototyping in Python. 
+First of all, it is worth mentioning that with recorded reader-tag communications, the eavesdropping code behaves predictably and always correctly decodes the messages, and sample traces are included in Appendix \ref{app:traces}. However, at least initially, the code required 50 seconds of processing per 1 second of data. This was due to the fact that incoming messages in GNU Radio Python code are stored as \texttt{NumPy} arrays which do not support efficient iteration. Converting them to a list before iteration resulted in a $10\times$ improvement, and assigning local names to function calls resulted in an additional $2.5\times$ improvement, for a processing cost of about 2.2 seconds per 1 second of data. This is still not real time, but given the unusual setup which relies heavily on the USB bus, this performance is acceptable given the convenience of prototyping in Python. 
 
-That said, the setup could have substantially benefited from a more fine-tuned antenna. As mentioned in Section \ref{subsec:antenna}, the range was only a couple of centimeters, and this was certainly not improved by the lack of a proper connecting cable and shielding. In the Do-It-Yourself (DIY) spirit, we also attempted to create an amplifier (which would not be a Low-Noise) based on the design in \cite{amplifier} with a couple of minor resistance modifications to make it work with 9V. However, the modifications did not quite work, but instead resulted in signal distortion as shown in Figure \ref{fig:amplified}.
+Moreover, even if the logic for tags other than the MIFARE Classic and Ultralight has not been implemented, the demodulation still works, and if the transmissions are not encrypted, the code will still be able to dump the plaintext (un-interpreted) bytes. What is more, the moving average methodology of detecting amplitude deviations and distinguishing between PCD and PICC transmissions works well --- even when there are sudden changes to the average. For example, pressing the reset button in the Arduino results  in a sudden and prolonged signal loss (Figure \ref{fig:usrpreset}), but the code can still recover all transmissions that follow. 
+
+This remains true even when testing a more ``real-world" situation, where the user approaches the reader with the tag (Figure \ref{fig:usrpreal}). As can be seen, the signal strength drops when the tag starts approaching the reader (due to their coupling), and initially the signal strength of the PICC transmissions is not sufficient for recovery. In this case, the code can recover all PCD transmissions, but only the PICC transmissions after the first READ request.
 
 
+As this experiment shows, though successful, the setup could have substantially benefited from a more fine-tuned antenna with a longer range and better shielding. It is worth mentioning that we also attempted to create an HF amplifier based on the design in \cite{amplifier} with a couple of minor resistance modifications to make it work with 9V, but the modifications resulted in the signal distortion shown in Figure \ref{fig:amplified}.
 
-This setback thus necessitated our setup (Figure \ref{fig:setup}) where the PCD, the PICC, and our antenna are in close proximity. However, we also tested a more ``real-world" situation, where the user approaches the reader with the tag. This is shown in Figure \ref{fig:usrpreal}, where the signal strength drops when the tag starts approaching the reader (due to their coupling). As can be seen, the signal strength is not sufficient to recover the tag's transmission during the anticollision and selection phases, but it can recover them after the first READ request. This would be insufficient for MIFARE Classic cards, but it does result in partial recovery for the Ultralight card.
-
-It is worth pointing out that the Reader commands are fully decoded even during the signal strength changes. This remains true and is even more pronounced in Figure \ref{fig:usrpreset}, where the Arduino is reset (but the tag remains close to the reader). The moving average methodology, then, works well, and we have included a couple of example traces decoded in Appendix \ref{app:traces} for reference and completeness.
-
-\begin{figure}[h]
+\begin{figure}[t]
   \includegraphics[width=\linewidth]{img/amplified}
-  \caption{Original in Yellow and ``Amplified" in Blue}
+  \caption{Amplification: Original (Top), Distorted (Bottom)}
   \label{fig:amplified}
 \end{figure}
 
 \subsection{Emulating}
 \label{subsec:evalemulate}
 
-The software emulation (either of both reader and tag, or of one of them against a recorded WAV file), was proven to work both by checking the plaintext output, and by running the output WAV file of the emulation through the eavesdropping code to recover the transmission. However, the emulation does not adhere to the ISO and MIFARE timing requirements. Specifically, since the signal processing is not real-time, it did not seem prudent to focus on clock recovery/synchronization and implementing timeouts, as it would be impossible to test them within the confines of our setup.
+The code makes it possible to simultaneously emulate both reader and tag without any external input --- and produce traces identical to those of real eavesdropping. Testing the software emulation against a recording is somewhat more complicated, but relies on the code overview of Figure \ref{fig:code}. For example, to test the PICC emulation, the eavesdropper decodes PCD commands and passes them on to the emulator, which produces the responses and also saves their modulation to a WAV file (at twice the sampling rate). We manually compare the emulated responses to the expected (real) responses, and also run our WAV file against the eavesdropper, ensuring that transmissions can be demodulated correctly. 
 
-However, this makes it harder to test the transmissions against real hardware. Testing the reader emulation is somewhat easier because the reader generates its own carrier. Specifically, as shown in Figure \ref{fig:emulated}, the emulated signal closely resembles the signal of a real reader (Figure \ref{fig:real}). Moreover, as shown in Figure \ref{fig:readertx}, we see in yellow that the USRP signal sent is not particularly strong, and the reception on the (unpowered) RC522 reader antenna in blue already indicates a strength drop due to our untuned transmissions.
+However, due to the lack of real-time signal processing, testing the transmissions against real hardware is challenging as the emulation does not adhere to the strict ISO and MIFARE timing requirements. However, we focus on the produced waveforms as measured by our oscilloscope at both the USRP output, and at the RC522 Antenna (which is used as a proxy for what a real PCD/PICC device would be receiving).
 
-
-\begin{figure}[h]
+\begin{figure}[tp]
 \centering
 \begin{minipage}[b]{.47\linewidth}
   \centering
@@ -431,31 +425,35 @@ However, this makes it harder to test the transmissions against real hardware. T
 \end{minipage}
 \end{figure}
 
-\begin{figure}[h]
+
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/readertx}
   \caption{Reader TX in Yellow, RC522 Antenna in Blue}
   \label{fig:readertx}
 \end{figure}
 
 
-The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so we had to up the frequency to 13.56 MHz. The behavior of the signal strength is similar (Figure \ref{fig:tagtx}), but it is unclear why the signal is alternating, since it is non-negative before exiting the USRP (Figure \ref{fig:load}).
+Figure \ref{fig:emulated} shows the USRP's emulated PCD signal, while Figure \ref{fig:real} shows a real signal transmitted (independently) by the RC522. As we can see, the two waveforms look very similar, and indeed the emulated signal seems to adhere to the pause requirements of Figure \ref{fig:pause}, indicating that Reader Emulation works in principle. Of course, as shown in Figure \ref{fig:readertx}, the USRP signal is not particularly strong (yellow), and the reception on the (unpowered) RC522 antenna (blue) already indicates a strength drop due to our untuned transmissions.
 
-\begin{figure}[h]
+
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/tagtx}
   \caption{Tag TX in Yellow, RC522 Antenna in Blue}
   \label{fig:tagtx}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/load}
   \caption{Load Modulation Before TX}
   \label{fig:load}
 \end{figure}
 
 
-Moreover, because of the lack of synchronization, when the RC522 Reader is on its REQA may overlap with the transmitted signal (Figure \ref{fig:overlap}). However, this can be used to our advantage and jam signals: doing (dynamic) interference in response to data being sent (although with some processing lag) results in timeouts and other errors at the Arduino end.
+The implementation of the hardware tag emulation was not as successful. Specifically, even with the LFTX daughterboard, we could not get any signal transmission out of the USRP at the 847.5 kHz range, so the ``subcarrier" used is 13.56 MHz. The behavior of the signal strength is similar (Figure \ref{fig:tagtx}), but it is unclear why the signal exiting the USRP is alternating. Specifically, as explained in Section \ref{subsec:emulate}, in order to simulate load modulation, we essentially switch on and off a transistor, so the signal existing the USRP is supposed to be non-negative, as we verified by the WAV output (Figure \ref{fig:load}). This, however, does not seem to be the case when testing the output at the USRP.
 
-\begin{figure}[h]
+Even so, our implementation can be used to jam signals by transmitting at the same time as a real transmission (Figure \ref{fig:overlap}). This way we can (dynamically) interfere with transmissions (although with some processing lag), resulting in timeouts and other errors at the Arduino end.
+
+\begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/overlap}
   \caption{Tag TX Overlap with RC522 Reader}
   \label{fig:overlap}
@@ -468,9 +466,9 @@ Moreover, because of the lack of synchronization, when the RC522 Reader is on it
 \section{Conclusions and Future Work}
 \label{sec:conclusions}
 
-All in all, the Software-Defined Radio (SDR) approach for eavesdropping and emulating MIFARE Classic 1K and Ultralight cards proved to be very fruitful for an initial exploration and prototyping phase. That said, the work was hindered by the setup (both in terms of using USB 3.0 and in terms of the antenna), but it proved to be adequate for non-real-time processing and without any extensive optimizations. 
+All in all, the Software-Defined Radio (SDR) approach for eavesdropping and emulating MIFARE Classic 1K and Ultralight cards proved to be very fruitful for an initial exploration and prototyping phase. The approach of the moving average window works well even with varying signal strength, and overall both encoding and decoding, as well as modulating and demodulating are functionally complete. Moreover, the code is modular and easily extensible and works even with unknown commands (provided they are not encrypted). What is more, full software and partial hardware emulation was achieved, which was sufficient to prevent legitimate PCD-PICC communications. Finally, performance was adequate for non-real-time processing without any extensive optimizations and with only a modest setup, which presents a great performance-complexity trade-off.
 
-However, it seems that coding in C++ or directly on the FPGA would yield much better results (especially for higher sampling rates), so future work could focus on comparing the SDR approach with embedded platforms. Moreover, looking at newer cards such as the MIFARE Ultralight EV1 and the MIFARE DESFire EV2 would be an interesting extension, especially in the context of testing the platform in the real world, where MIFARE Classic cards have been rendered obsolete. Finally, more focus could be placed on respecting the timing requirements of the protocol --- which could be improved by doing clock recovery for synchronization --- but we firmly believe that this work is a good start.
+As a result, future work could focus on comparing the SDR approach with embedded platforms (C++ or FPGA), which would presumably yield better results (especially for higher sampling rates), but at the cost of additional development investment. Moreover, new experiments could focus on achieving the timing requirements of the protocol --- for instance through clock recovery for synchronization and with better antennas --- and looking at newer cards such as the MIFARE Ultralight EV1 and DESFire EV2, but we firmly believe that this work is a good start towards such goals.
 
 %----------------------------------------------------------------------------------------
 %	ACKNOWLEDGMENTS
@@ -479,7 +477,7 @@ However, it seems that coding in C++ or directly on the FPGA would yield much be
 \phantomsection
 \section*{Acknowledgments} % The \section*{} command stops section numbering
 
-I would like to thank Kasper Rasmussen for being my supervisor, for his invaluable help throughout the project, and for entrusting me with his expensive equipment. I would also like to thank Simon Crowe for helping shape the focus of the project. Finally, I would like to thank Kellogg College and their Research Support Grant which enabled the purchase of some of the components that were used in this project.
+I would like to thank Kasper Rasmussen for being my supervisor, for his invaluable help throughout the project, for his comments on earlier versions of this report, and for entrusting me with his expensive equipment. I would also like to thank Simon Crowe for helping shape the focus of the project. Finally, I would like to thank Kellogg College and their Research Support Grant which enabled the purchase of some of the components that were used in this project.
 
 %----------------------------------------------------------------------------------------
 %	BIBLIOGRAPHY
@@ -502,37 +500,32 @@ I would like to thank Kasper Rasmussen for being my supervisor, for his invaluab
 
 \subsection{MIFARE Cards}
 \label{app:mifare}
-In this section, we discuss the memory layout and commands used by the MIFARE Ultralight (Section \ref{app:ultralight}) and Classic 1K cards (Section \ref{app:classic1k}), with more general ISO details in \cite{iso144433}.
+In this section, we discuss the memory layout and commands used by the MIFARE Ultralight (Section \ref{app:ultralight}) and Classic 1K cards (Section \ref{app:classic1k}) based on their datasheets \cite{ultralight, classic1k}, with more general ISO details in \cite{iso144433}.
 
-\subsubsection{MIFARE Ultralight \cite{ultralight}}
+\subsubsection{MIFARE Ultralight}
 \label{app:ultralight}
 
-The MIFARE Ultralight has a 7-byte UID SN[0-6], including 2 check bytes BCC[0-1]. SN0 is the manufacturer ID (0x04 for NXP Semiconductors), and the check bytes are defined as follows: $BCC0=0x88 \oplus SN0 \oplus SN1 \oplus SN2$ and $BCC1 = SN3 \oplus SN4 \oplus SN5 \oplus SN6$. Lock bytes can be used to turn pages into read-only mode, while One-Time Pad (OTP) bytes can be set to 1, but never set back to 0 again. As can be seen in Figure \ref{fig:fsmul}, Ultralight cards go through 2 rounds of ANTICOLLISION and SELECT commands, and their memory layout is shown in Figure \ref{fig:memul}.
+As shown in Table \ref{tab:memul}, the MIFARE Ultralight has a 7-byte UID SN[0-6], including 2 check bytes BCC[0-1]. SN0 is the manufacturer ID (0x04 for NXP Semiconductors), and the check bytes are defined as follows: $BCC0=0x88 \oplus SN0 \oplus SN1 \oplus SN2$ and $BCC1 = SN3 \oplus SN4 \oplus SN5 \oplus SN6$. Lock bytes can be used to turn pages into read-only mode, while One-Time Pad (OTP) bytes can be set to 1, but never set back to 0 again. Table \ref{tab:cmdul} shows the possible commands when communicating with a MIFARE Ultralight card. The address for the READ and WRITE commands are between 0x00 and 0x0F and include roll-over, while C[0-1] is the CRC, and D[0-15] refer to data bytes. The full FSM can be seen in Figure \ref{fig:fsmul}.
+
+\begin{center}
+\begin{longtable}{|l|l|}
+\caption{MIFARE Ultralight Memory Layout}
+\label{tab:memul}\\
+\hline
+\rowcolor{headcolor}
+{\bf Page Address} & {\bf 4 Byte Contents} 			\\ \hline
+0x00-0x01 		& Serial Number				\\ \hline
+0x02			& [SN, Internal, Lock Byte, Lock Byte] 	\\ \hline
+0x03			& One Time Pad 				\\ \hline
+0x04-0x0F 		& User Memory				\\ \hline
+\end{longtable}
+\end{center}
 
 
-\begin{figure}[h]
-\centering
-\begin{minipage}[b]{.47\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{img/fsmul}
-  \captionof{figure}{MIFARE Ultralight FSM}
-  \label{fig:fsmul}
-\end{minipage}
-\begin{minipage}[b]{.47\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{img/memul}
-  \captionof{figure}{MIFARE Ultralight Memory Layout}
-  \label{fig:memul}
-\end{minipage}
-\end{figure}
-
-\noindent Table \ref{tab:cmdul} shows the possible commands when communicating with a MIFARE Ultralight card. The address for the READ and WRITE commands are between 0x00 and 0x0F and include roll-over  C[0-1] is the CRC, and D[0-15] refers to data bytes.
-
-\begin{table}[h]
-\centering
+\begin{center}
+\begin{longtable}{|l|l|l|}
 \caption{MIFARE Ultralight Commands}
-\label{tab:cmdul}
-\begin{tabular}{|l|l|l|}
+\label{tab:cmdul} \\
 \hline
 \rowcolor{headcolor}
 {\bf Command} 		&     {\bf Code} 						&    {\bf Response} 		\\ \hline
@@ -546,77 +539,93 @@ READ 				&     0x30 [Addr] C0 C1					&    D0 D1 $\cdots$ D15 C0 C1    	\\ \hline
 WRITE 			&     0xA2 [Addr] D0 D1 D2 D3 C0 C1       		&   [ACK/NAK]		         	\\ \hline
 COMPATIBILITY WRITE (1)&     0xA0 [Addr] C0 C1 					&   [ACK/NAK]			\\ \hline
 COMPATIBILITY WRITE (2)&     D0 D1 $\cdots$ D15 C0 C1				&   [ACK/NAK]			\\ \hline
-HALT				&     0x50 0x00 C0 C1				       	&   [passive ACK/NAK]             	\\ \hline
-\end{tabular}
-\end{table}
+HALT				&     0x50 0x00 C0 C1				       	&   [Passive ACK/NAK]             	\\ \hline
+\end{longtable}
+\end{center}
+
+
+\begin{figure}[h]
+\centering
+  \includegraphics[width=15cm]{img/fsmul}
+  \captionof{figure}{MIFARE Ultralight FSM}
+  \label{fig:fsmul}
+\end{figure}
+
+\noindent 
+
 
 \newpage
-\subsubsection{MIFARE Classic 1K \cite{classic1k}}
+\subsubsection{MIFARE Classic 1K}
 \label{app:classic1k}
 
-The memory layout for Classic 1K cards can be seen in Figure \ref{fig:mem1k}. The card does not have a globally-unique identifier, but instead uses a 4-byte Non-Unique Identifier (NUID) in block 0. Each sector has a block called the ``trailer", which contains the two keys and the access bits. The layout for these access bits is shown in Figure \ref{fig:access}, where $CX_y$ is the $X$'th access bit for block $y$. These access bits are interpreted differently based on whether the block is a trailer block (Figure \ref{fig:trailer}) or a data block (Figure \ref{fig:data}).
+\noindent As indicated in Figure \ref{fig:fsm1k}, the Classic 1K only uses a single round of ANTICOLLISION and SELECT commands, but includes a much more complicated 3-pass authentication mechanism. We explain in detail the encryption scheme in Appendix \ref{app:crypto1}, but we focus on the card's memory layout, which is summarized in Table \ref{tab:mem1k}. The card does not have a globally-unique identifier, but instead uses a 4-byte Non-Unique Identifier (NUID) in block 0. Each sector has a block called the ``trailer", which contains the two keys and the access bits. The layout for these access bits is shown in Table \ref{tab:access}, where $CX_y$ is the $X$'th access bit for block $y$. These access bits are interpreted differently based on whether the block is a trailer block or a data block (Table \ref{tab:access}). It is worth noting that the data blocks can be used for simple read/write operations, or they can be used as ``value blocks" for applications which need more robustness and backups and could benefit from operations like INCREMENT and DECREMENT.
 
 \begin{figure}[h]
-\centering
-\begin{minipage}[b]{.47\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{img/mem1k}
-  \captionof{figure}{MIFARE Classic 1K Memory Layout}
-  \label{fig:mem1k}
-\end{minipage}
-\begin{minipage}[b]{.47\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{img/access}
-  \captionof{figure}{MIFARE Classic 1K Access Bits}
-  \label{fig:access}
-\end{minipage}
-\end{figure}
-
-
-
-\begin{figure}[h]
-\centering
-\begin{minipage}[b]{.47\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{img/trailer}
-  \captionof{figure}{Trailer Block Access Conditions}
-  \label{fig:trailer}
-\end{minipage}
-\begin{minipage}[b]{.47\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{img/data}
-  \captionof{figure}{Data Block Access Conditions}
-  \label{fig:data}
-\end{minipage}
-\end{figure}
-
-It is worth noting that the data blocks can be used for simple read/write operations, or they can be used as ``value blocks" for applications which need more robustness and backups and could benefit from operations like INCREMENT and DECREMENT (see below). The layout for such blocks is shown in Figure \ref{fig:value}.
-
-\begin{figure}[h]
-  \hfill\includegraphics[width=0.7\linewidth]{img/value} \hspace*{\fill}
-  \caption{Value Block Layout}
-  \label{fig:value}
-\end{figure}
-
-\noindent As indicated in Figure \ref{fig:fsm1k}, the Classic 1K only uses a single round of ANTICOLLISION and SELECT commands, but includes a much more complicated 3-pass authentication mechanism. We explain in detail the encryption scheme in Appendix \ref{app:crypto1}, but we include the un-encrypted commands in Table \ref{tab:cmd1k}, where NID[0-3] represents the NUID and $BCC=NID0 \oplus NID1 \oplus NID2 \oplus NID3$. Addresses range from 0x00 to 0x3F, while C[0-1] refers to the Checksum and D[0-15] to data bytes.
-
-\begin{figure}[ht]
  \hfill
-  \includegraphics[height=7cm,keepaspectratio]{img/fsm1k}
+  \includegraphics[width=15cm]{img/fsm1k}
  \hspace*{\fill}
   \caption{Classic 1K FSM}
   \label{fig:fsm1k}
 \end{figure}
 
-
-
-\begin{table}[ht]
-\centering
-\caption{MIFARE Classic 1K Plaintext Commands}
-\label{tab:cmd1k}
-\begin{tabular}{|l|l|l|}
+\begin{center}
+\begin{longtable}{|l|l|l|}
+\caption{MIFARE Classic 1K Memory Layout}
+\label{tab:mem1k} \\
 \hline
-\rowcolor[HTML]{E2F1F3} 
+\rowcolor{headcolor}
+{\bf Sector} & {\bf Block} & {\bf 16 Byte Contents} \\ \hline
+[0-15] & [0-2] & \specialcell{User Data\\Manufacturer Data in Sector 0, Block 0} \\ \hline
+[0-15] & 3 (``Trailer")& Key A (6 Bytes), Access Bits (4 Bytes), Key B (6 Bytes) \\ \hline
+\end{longtable}
+\end{center}
+
+{\renewcommand{\arraystretch}{1.2}
+\begin{center}
+\begin{longtable}{|l|l|l|l|l|l|l|l|l|}
+\caption{Access Bits Layouts}
+\label{tab:access}\\
+\hline
+\rowcolor{headcolor}
+{\bf Byte$\backslash$ Bit} & {\bf 7} & {\bf 6} & {\bf 5} & {\bf 4} & {\bf 3} & {\bf 2} & {\bf 1} & {\bf 0} \\ \hline
+{\bf 6}& $\overline{C2_3}$ & $\overline{C2_2}$& $\overline{C2_1}$& $\overline{C2_0}$& $\overline{C1_3}$& $\overline{C1_2}$& $\overline{C1_1}$& $\overline{C1_0}$ \\ \hline
+{\bf 7}&$C1_3$ & $C1_2$&$C1_1$ &$C1_0$&$\overline{C3_3}$ & $\overline{C3_2}$& $\overline{C3_1}$& $\overline{C3_0}$\\ \hline
+{\bf 8}&$C3_3$ & $C3_2$& $C3_1$&$C3_0$ &$C2_3$ & $C2_2$ &$C2_1$  &$C2_0$  \\ \hline
+{\bf 9} &  \multicolumn{8}{c|}{User Data}\\ \hline
+\end{longtable}
+\end{center}
+}
+
+\begin{center}
+\begin{longtable}{|l||l|l|l||l|l|}
+\caption{Read (R), Write (W), Increment (I) and Decrement/Transfer/Restore (O) Access Matrix}
+\label{tab:access} \\
+\hline
+\rowcolor{headcolor}
+{\bf Access Bits} & \multicolumn{3}{c||}{{\bf Trailer Block}} & \multicolumn{2}{c|}{{\bf Data Block}} \\ \hline\hline
+
+\rowcolor{headcolor}
+{\bf C[1-3]} 		&     {\bf Key A} &    {\bf Access Bits} & {\bf Key B} 		& {\bf Read/Write} & {\bf Increment/Others}\\ \hline
+000 & W (A) & R (A) & RW (A)& RW (A, B)& IO (A, B)\\ \hline
+001 & W (A) & RW (A) & RW (A) & R (A, B)& O (A, B)\\ \hline
+010 & - & R (A) & R (A)& R (A, B)& -\\ \hline
+011 & W (B) & R (A), RW (B)& W (B)& RW (B) & -\\ \hline
+100 & W (B) & R (A, B)& W (B)& R (A), RW(B)& -\\ \hline
+101 & - & R (A), RW (B) & -& R (B)& -\\ \hline
+110 & - &  R (A, B)& - & R (A), RW (B) & O (A), IO(B)\\ \hline
+111 & - & R (A, B)& -& -& - \\ \hline
+\end{longtable}
+\end{center}
+
+\noindent Table \ref{tab:cmd1k} presents the commands recognized by Classic 1K cards, where NID[0-3] represents the NUID and $BCC=NID0 \oplus NID1 \oplus NID2 \oplus NID3$. Addresses range from 0x00 to 0x3F, while C[0-1] refers to the Checksum and D[0-15] to data bytes.
+
+
+\begin{center}
+\begin{longtable}{|l|l|l|}
+\caption{MIFARE Classic 1K Plaintext Commands} 
+\label{tab:cmd1k}\\
+\hline
+\rowcolor{headcolor}
 {\bf Command} 		&     {\bf Code} 						&    {\bf Response} 		\\ \hline
 REQA 				&     0x26      						&    0x04  0x00 (ATQA) 		\\ \hline
 WUPA 			&     0x52      						&    0x04  0x00 (ATQA) 		\\ \hline
@@ -631,13 +640,12 @@ WRITE (2)			&     D0 D1 $\cdots$ D15 C0 C1				&   [ACK/NAK]			\\ \hline
 INCREMENT (1)		&     0xC1 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
 DECREMENT (1)		&     0xC0 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
 RESTORE (1)			&     0xC2 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
-INC/DEC/RES (2)		&     D0 D1 $\cdots$ D15 C0 C1				&   [passive ACK/NAK]		\\ \hline
+INC/DEC/RES (2)		&     D0 D1 $\cdots$ D15 C0 C1				&   [Passive ACK/NAK]		\\ \hline
 TRANSFER			&     0xB0 [Addr] C0 C1					&   [ACK/NAK]			\\ \hline
-HALT				&     0x50 0x00 C0 C1				       	&   [passive ACK/NAK]             	\\ \hline
-\end{tabular}
-\end{table}
+HALT				&     0x50 0x00 C0 C1				       	&   [Passive ACK/NAK]             	\\ \hline
+\end{longtable}
+\end{center}
 
-\newpage
 \subsection{CRYPTO1}
 \label{app:crypto1}
 
@@ -649,12 +657,12 @@ In this section, we summarize the CRYPTO1 algorithm as reverse-engineered in \ci
 \item $a_{80+i} := L(a_{32+i},\ldots,a_{79+i}) \oplus n_{R,i}$, for $0 \le i \le 31$
 \item $a_{112+i} := L(a_{64+i},\ldots,a_{111+i})$, $\forall i \in \mathbb{N}$
 \end{itemize}
-where $L$ is the LFSR ``{\bf feedback function}" defined by:
+where $L$ is the LFSR ``feedback function" defined by:
 
 \noindent $L(x_0x_1\ldots x_{47}):=x_{0} \oplus x_{5} \oplus x_{9} \oplus x_{10} \oplus x_{12} \oplus x_{14} \oplus x_{15} \oplus x_{17} \oplus x_{19} \oplus x_{24} \oplus x_{25} \oplus x_{27} \oplus x_{29} \oplus x_{35} \oplus x_{39} \oplus x_{41} \oplus x_{42} \oplus x_{43}$
 
 
-The outputs are encrypted using a ``{\bf filter function}":
+The outputs are encrypted using a ``filter function":
 
 \noindent $f(x_0x_1\ldots x_{47}) := f_c(f_a(x_9,x_{11},x_{13},x_{15}),f_b(x_{17},x_{19},x_{21},x_{23}),f_b(x_{25},x_{27},x_{29},x_{31}),f_a(x_{33},x_{35},x_{37},x_{39}),f_b(x_{41},x_{43},x_{45},x_{47}))$, where 
 \begin{align}
@@ -671,9 +679,9 @@ These two main functions are summarized in Figure \ref{fig:lfsr}.
   \label{fig:lfsr}
 \end{figure}
 
-The keystream bit $b_i$ is then defined by $b_i := f(a_i\ldots a_{47+i})$, and the encryptions of the $i$-th regular bit (i.e. excluding start/end and parity bits) is defined by XORing with $b_i$. Specifically, for $0\le i \le 31$, $\{n_{R,i}\}=n_{R,i} \oplus b_{32+i}$, $\{a_{R,i}\}=a_{R,i} \oplus b_{64+i}$, and $\{a_{T,i}\}=a_{T,i} \oplus b_{96+i}$. Note that the first 32 bits are not used in the first authentication, but they are used in all subsequent authentications, as the tag nonce is encrypted (and the cipher is re-initialized), so that $\{n_{T,i}\}=n_{T,i} \oplus b_i$. 
+The keystream bit $b_i$ is then defined by $b_i := f(a_i\ldots a_{47+i})$, and the encryption of the $i$-th regular bit (i.e. excluding start/end and parity bits) is defined by XORing with $b_i$. Specifically, for $0\le i \le 31$, $\{n_{R,i}\}=n_{R,i} \oplus b_{32+i}$, $\{a_{R,i}\}=a_{R,i} \oplus b_{64+i}$, and $\{a_{T,i}\}=a_{T,i} \oplus b_{96+i}$. Note that the first 32 bits are not used in the first authentication, but they are used in all subsequent authentications, as the tag nonce is encrypted (and the cipher is re-initialized), so that $\{n_{T,i}\}=n_{T,i} \oplus b_i$. 
 
-The challenges only depend on the random nonce $n_T$, with $a_R=suc^{64}(n_T)$ and $a_T=suc^{96}(n_T)$, where the ``{\bf successor function}" --- also used for the Random Number Generation (RNG) --- is iteratively applied 64 and 96 times respectively. It is defined by $suc(x_0x_1\ldots x_{31}):=x_1x_2\ldots x_{31}(x_{16}\oplus x_{18}\oplus x_{19}\oplus x_{21})$ which only depends on the last 16 bits of the input.
+The challenges only depend on the random nonce $n_T$, with $a_R=suc^{64}(n_T)$ and $a_T=suc^{96}(n_T)$, where the ``successor function" --- also used for the Random Number Generation (RNG) --- is iteratively applied 64 and 96 times respectively. It is defined by $suc(x_0x_1\ldots x_{31}):=x_1x_2\ldots x_{31}(x_{16}\oplus x_{18}\oplus x_{19}\oplus x_{21})$ which only depends on the last 16 bits of the input.
 
 
 It is worth noting that the start and ending transmission bits are not encrypted, but the parity bits are --- by reusing the encryption bit for the next bit to be encrypted: $\{p_j\} :=p_j \oplus b_{8j +8}$. This leaks information, and makes the protocol incompatible with the ISO standard, since the parity bits can be inverted. See Table \ref{tab:trace1k} for an example.
