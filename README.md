@@ -1,12 +1,12 @@
-Eavesdropping on and Emulating MIFARE Ultralight and Classic Cards Using Software Defined Radio 
-by Ilias Giechaskiel
-https://ilias.giechaskiel.com
+# Eavesdropping on and Emulating MIFARE Ultralight and Classic Cards Using Software Defined Radio
+
+By **Ilias Giechaskiel** https://ilias.giechaskiel.com
 
 This project contains a Software Defined Radio (SDR) for ISO 14443 Type A NFC/RFID communications. Specifically, it can eavesdrop and decrypt MIFARE Ultralight and Classic 1K communications and partially emulate them. It can also work with a USRP N210, with the BasicRX/TX and LFRX/TX daughterboards. For more details, please read the [detailed PDF write-up](report/report.pdf).
 
 
 The usage is as follows:
-
+```
 Usage: usrp_nfc.py [options]
 
 Options:
@@ -27,15 +27,16 @@ Options:
 The defaults are as follows:
 action = eavesdrop
 type = all
-input = uhd (i.e. the USRP)
+input = uhd
 sample_in_rate = 2M samples/sec
 sample_out_rate = sample_in_rate
 output = None
+```
 
-The output and input parameters can either be a WAV file or uhd (see the [recordings](recordings) folder for examples that can be used).
+The output and input parameters can either be a WAV file or uhd for the USRP (see the [recordings](recordings) folder for examples that can be used).
 
-Note that the project is somewhat sensitive to the antenna -- any errors can usually be fixed by changing the hi_val parameter passed into the [transition_sink](code/transition_sink.py) module (called from the [decoder](code/decoder.py) module)
+Note that the project is somewhat sensitive to the antenna -- any errors can usually be fixed by changing the `hi_val` parameter passed into the [transition_sink](code/transition_sink.py) module (called from the [decoder](code/decoder.py) module)
 
-For the emulate action, a .json file (with examples in the [data](data) folder) needs to be passed in through the extra_file parameter. See the [create_json](code/create_json.py) module for an example of how to create it. Note that the rands parameter is only needed for MIFARE Classic 1K cards, and is used to ensure that when emulating against a recording (with the input switch) the parameters match. 
+For the emulate action, a `.json` file (with examples in the [data](data) folder) needs to be passed in through the extra_file parameter. See the [create_json](code/create_json.py) module for an example of how to create it. Note that the rands parameter is only needed for MIFARE Classic 1K cards, and is used to ensure that when emulating against a recording (with the input switch) the parameters match. 
 
 Example outputs of the program are found under the [outputs](outputs) folder.
