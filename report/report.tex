@@ -150,7 +150,7 @@ Amplitude Shift Keying (ASK) of depth $X$\% is a form of digital modulation whic
   \label{fig:ask}
 \end{figure}
 
-This is achieved through the Modified Miller Encoding, which ensures that there is no period of more than 3\ms of silence (``pause"). Specifically, every bit is represented as a (combination of) signals lasting a total of $t_b=128/f_c\approx9.44\ms$. The encoding (show in Figure \ref{fig:miller}) is as follows:
+This is achieved through the Modified Miller Encoding, which ensures that there is no period of more than 3\ms of silence (``pause"). Specifically, every bit is represented as a (combination of) signals lasting a total of $t_b=128/f_c\approx9.44\ms$. The encoding (shown in Figure \ref{fig:miller}) is as follows:
 \begin{itemize}[noitemsep] 
 \item 1 is encoded as an unmodulated signal for $t_b/2\approx 4.72 \ms$, followed by a period of silence for 3\ms, followed by an unmodulated signal for $t_b/2-3\approx 1.72\ms$
 \item 0 after a 0 is encoded as a silence period for 3\ms followed by an unmodulated signal for $t_b-3\approx 6.44\ms$
@@ -164,7 +164,7 @@ This is achieved through the Modified Miller Encoding, which ensures that there 
   \label{fig:miller}
 \end{figure}
 
-In practice, however, because of hardware imperfections, the pause is not perfect, but needs to comply with the requirements shown in Figure \ref{fig:pause}. As a result, the modulated carrier for the encodings resembles Figure \ref{fig:miller2} which was recorded with our oscilloscope.
+In practice, however, because of hardware imperfections, the pause is not perfect, but needs to comply with the requirements shown in Figure \ref{fig:pause}. As a result, the modulated carrier for the encodings resembles Figure \ref{fig:miller2}, which was recorded with our oscilloscope.
 
 \begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/pause}
@@ -175,7 +175,7 @@ In practice, however, because of hardware imperfections, the pause is not perfec
 
 \begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/miller2}
-  \caption{Modified Miller Encoding from PCD}
+  \caption{Modified Miller Encoding from the PCD}
   \label{fig:miller2}
 \end{figure}
 
@@ -184,7 +184,7 @@ In practice, however, because of hardware imperfections, the pause is not perfec
 
 As mentioned above, the tag does not have sufficient power for active transmissions. Consequently, the PICC achieves data transmission passively, by changing its {\em load}, which can be inferred as a voltage drop on the PCD, hence the term Load Modulation. Switching the load generates a subcarrier, which has a frequency $f_s=f_c/16=847.5$ kHz. 
 
-The bits are then encoded using On-Off Keying (OOK) --- or Manchester Encoding --- as follows, with a total duration also equal to $t_b\approx9.44\ms$, which also equals 8 periods of the subcarrier, also shown in Figure \ref{fig:manchester}:
+The bits are then encoded using On-Off Keying (OOK) --- or Manchester Encoding --- as follows, with a total duration of $t_b\approx9.44\ms$, which also equals 8 periods of the subcarrier, as shown in Figure \ref{fig:manchester}:
 
 \begin{itemize}[noitemsep] 
 \item 1 is encoded by modulating the subcarrier for the {\em first} half ($=t_b/2\approx4.72\ms$) of the bit duration
@@ -208,7 +208,7 @@ Though the ISO/IEC 14443A protocol is general, we will focus on a few key aspect
 
 First of all, it is worth noting that each byte is ordered from the Least Significant Bit (LSB) to the Most Significant Bit (MSB), and that each byte is followed by an odd parity bit, meaning that an even number of high bits (ones) is followed by another high bit (one), whereas an odd number of ones is followed by a low bit (zero). For example, the byte 0x3F is encoded as $1111\ 1100\ 1$.
 
-The PCD signifies that it is waiting to read tags by repeatedly sending a REQA (0x26) or a WUPA (0x52), where the ``A" signifies that type A protocol is used. The difference between the REQA request and the WUPA wake-up request is that the latter also wakes up PICCs that were previously asked to HALT. Unlike all other commands, they are sent using a {\em short frame} that only consists of 7 bits, and which does not include a parity bit. As a result, the REQA command (including the beginning and end transmission zero bits) is sent as the sequence of bits $0\ 0110\ 010\ 0$.
+The PCD signifies that it is waiting to read tags by repeatedly sending a REQA (0x26) or a WUPA (0x52), where the ``A" signifies that Type A protocol is used. The difference between the REQA request and the WUPA wake-up request is that the latter also wakes up PICCs that were previously asked to HALT. Unlike all other commands, they are sent using a {\em short frame} that only consists of 7 bits, and which does not include a parity bit. As a result, the REQA command (including the beginning and end transmission zero bits) is sent as the sequence of bits $0\ 0110\ 010\ 0$.
 
 The standard has also defined Anticollision and Selection phases before the transmission of actual data which are used to ensure the non-interference from multiple tags and the correct selection of the tag. However, we only discuss them in the context of the MIFARE cards in Appendix \ref{app:mifare}, since they are not necessary for understanding the rest of this report. 
 
@@ -272,7 +272,7 @@ The types of cards used are Classic 1Ks and NTAG203s \cite{ntag203}, which are c
 \subsection{The Antenna}
 \label{subsec:antenna}
 
-Much research has been conducted into making RFID-type antennas work well and up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we make our own. Specifically according to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=8$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $5.28 \mu$H, which is within the prescribed limits.
+Much research has been conducted into making RFID-type antennas work well and up to a large distance, with much of it available as application notes \cite{mifare, antenna, pnantenna}. Many of them are also available for direct purchase, such as the DLP-RFID-ANT by DLP Design,\footnote{Found at \url{http://www.dlpdesign.com/rf/ant1.shtml}} but fundamentally the RFID antenna is just an inductor, made out of wire wrapped into a coil. These home-made antennas made out of simple wire (or out of NFC tags \cite{nfcantenna}) have proven themselves to work \cite{wireantenna}, so we make our own. Specifically according to \cite{pnantenna}, the inductance should be between 300 nH and 3 $\mu$H, so using Equation (\ref{eq:inductance}) with $N=6$ turns, $D=4$cm, and $s=2.8$mm (22 AWG), we get an inductance of $2.97 \mu$H, which is within the prescribed limits.
 
 \begin{equation}
 \label{eq:inductance}
@@ -342,7 +342,7 @@ A (simplified) high-level overview of the eavesdropping code is found in the top
 
 \begin{figure}[tp]
   \includegraphics[width=\linewidth]{img/code}
-  \caption{High-Level Code Overview. Lines Represent Information Flow, with Dashes Being Optional}
+  \caption{High-Level Code Overview. Arrows Represent Information Flow, with Dashes Being Optional}
   \label{fig:code}
 \end{figure}
 
@@ -369,7 +369,7 @@ The FSM is also crucial for the PCD and PICC emulation, since it centralizes all
 
 Because of this setup, it is possible to emulate both the reader and the tag simultaneously, without needing to go through encoding and modulation, but we have also coded the Manchester and Modified Miller encodings (in a reverse fashion to Section \ref{subsec:eavesdrop}), as well as modulation, so that they can be output to a WAV file for use without a USRP.
 
-Modulating the Reader's output is straightforward: it is enough to generate a 13.56 MHz (sine wave) carrier and output it, or output nothing for the ``pause" duration. Load Modulation of the Tag is more complicated, and is achieved by only outputting when the encoding is a logical 1 (for either 4.5\ms or 9$\mu s$). Specifically, however, and as explained in Section \ref{subsec:picc} (Figure \ref{fig:manchester}), this is achieved by generating a 847.5 kHz subcarrier, multiplying by the bit to output, and then switching the load (in this case through the transistor) only for the amount of time for which the signal is positive.
+Modulating the Reader's output is straightforward: it is enough to generate a 13.56 MHz (sine wave) carrier and output it, or output nothing for the ``pause" duration. Load Modulation of the Tag is more complicated, and is achieved by only outputting when the encoding is a logical 1 (for either $t_b$ or $t_b/2$ $\mu s$). Specifically, however, and as explained in Section \ref{subsec:picc} (Figure \ref{fig:manchester}), this is achieved by generating a 847.5 kHz subcarrier, multiplying by the bit to output, and then switching the load (in this case through the transistor) only for the amount of time for which the signal is positive.
 
 The simplified high-level overview of the emulation code can be found in the bottom of Figure \ref{fig:code}. After the eavesdropping code has decoded incoming transmission, the FSM passes the commands to the Tag and/or Reader which determine the suitable response and pass it back to the FSM. If the command is to be output somewhere, it is Manchester/Miller encoded, and then passed on to a block which converts bit durations into samples. These samples are then modulated with the suitable carrier and output into a WAV file/the USRP.
 
