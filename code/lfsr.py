@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# Written by Ilias Giechaskiel
+# https://ilias.giechaskiel.com
+# June 2015
 
 class lfsr:
     def __init__(self, init_value, positions):

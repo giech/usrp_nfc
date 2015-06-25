@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+# Written by Ilias Giechaskiel
+# https://ilias.giechaskiel.com
+# June 2015
+
 import json
 
 zero_block = [0x00]*16
@@ -13,6 +19,7 @@ tag_block = [0xCD, 0x76, 0x92, 0x74,
 tag_sector = tag_block + zero_block*2 + key_block
 mem = tag_sector + 15*zero_sector
 
+# rands are optional, but used for emulation with recording
 ar = [{'entry': 'tag', 
        'rands': [[0x0E, 0x61, 0x64, 0xD6], 
                  [0x8F, 0x82, 0x69, 0x9E],

@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Written by Ilias Giechaskiel
+# https://ilias.giechaskiel.com
+# June 2015
+
 from gnuradio import blocks
 from gnuradio import gr
 

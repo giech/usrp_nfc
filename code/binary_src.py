@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Written by Ilias Giechaskiel
+# https://ilias.giechaskiel.com
+# June 2015
+
 import numpy
 from utilities import PulseLength
 from gnuradio import gr

@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+# Written by Ilias Giechaskiel
+# https://ilias.giechaskiel.com
+# June 2015
+
 import json
 from command import TagType
 from reader import Reader

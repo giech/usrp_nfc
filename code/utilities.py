@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# Written by Ilias Giechaskiel
+# https://ilias.giechaskiel.com
+# June 2015
 
 class ErrorCode:
     NO_ERROR  = 0
