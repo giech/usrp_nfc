@@ -37,7 +37,7 @@ extra_file = None
 
 The output and input parameters can either be a WAV file or uhd for the USRP (see the [recordings](recordings) folder for examples that can be used).
 
-Note that the project is somewhat sensitive to the antenna -- any errors can usually be fixed by changing the `hi_val` parameter passed into the [transition_sink](code/transition_sink.py) module (called from the [decoder](code/decoder.py) module)
+Note that the project is somewhat sensitive to the antenna -- any errors can usually be fixed by changing the `hi_val` parameter passed into the [transition_sink](code/transition_sink.py) module (called from the [decoder](code/decoder.py) module). In my tests, values from 1.05 to 1.1 work, depending on the antenna/PCD/PICC setup.
 
 For the emulate action, a `.json` file (with examples in the [data](data) folder) needs to be passed in through the extra_file parameter. See the [create_json](code/create_json.py) module for an example of how to create it. Note that the rands parameter is only needed for MIFARE Classic 1K cards, and is used to ensure that when emulating against a recording (with the input switch) the parameters match. 
 
