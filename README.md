@@ -2,7 +2,7 @@
 
 By **Ilias Giechaskiel** https://ilias.giechaskiel.com
 
-This project contains a Software-Defined Radio (SDR) implementation for ISO 14443 Type A NFC/RFID communications. Specifically, it can eavesdrop and decrypt MIFARE Ultralight and Classic 1K communications and partially emulate them. It can also work with a USRP N210, with the BasicRX/TX and LFRX/TX daughterboards. For more details, please read the [detailed PDF write-up](report/report.pdf).
+This project contains a Software-Defined Radio (SDR) implementation for ISO 14443 Type A NFC/RFID communications. Specifically, it can eavesdrop and decrypt MIFARE Ultralight and Classic 1K communications and partially emulate them. It can also work with a USRP N210, with the BasicRX/TX and LFRX/TX daughterboards. For more details, please read the [detailed PDF write-up](report/report.pdf), or take a look at the [summary poster](report/poster.pdf).
 
 
 The usage is as follows:
