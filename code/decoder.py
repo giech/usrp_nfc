@@ -30,9 +30,9 @@ class decoder(gr.hier_block2):
 
         self._back = background.background(reader, tag, emulator)    
         self._trans = transition_sink.transition_sink(samp_rate, self._back.append, hi_val=hi_val)
-        self._connect(self._src, self._trans)
+        self.connect(self._src, self._trans)
 
         if dst and dst != "uhd" and src == "uhd":
             self._rec = record.record(dst, samp_rate)
-            self._connect(self._src, self._rec)
+            self.connect(self._src, self._rec)
 
